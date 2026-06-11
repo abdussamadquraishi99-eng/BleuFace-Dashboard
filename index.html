@@ -261,7 +261,7 @@ td{padding:7px 12px;vertical-align:middle}
 
   <!-- OVERVIEW -->
   <div id="pane-overview" class="pane on">
-    <div class="note"><b>Calculation note:</b> Gross Profit = Line Net &#8722; Line Cost. The 'Line Profit' column in the Excel file has a formula error in rows 1465&#8211;2017 and is intentionally ignored by this dashboard.</div>
+    <div class="note"><b>Calculation note:</b> Gross Profit = Line Net &#8722; Line Cost (computed directly). The 'Line Profit' column in the Excel file has formula errors and is intentionally ignored &#8212; this dashboard always shows the correct figure.</div>
     <div id="ov-kpis" class="kpi-grid"></div>
     <div id="ov-ar" class="ar-grid"></div>
     <div class="chart-grid-2">
@@ -437,8 +437,8 @@ function fk(n, compact) {
 function fn(n)  { return n === null || n === undefined ? '—' : Math.round(n).toLocaleString('en'); }
 function fp(n)  { return n === null || n === undefined ? '—' : (n * 100).toFixed(2) + '%'; }
 function fp1(n) { return n === null || n === undefined ? '—' : (n * 100).toFixed(1) + '%'; }
-function fdate(d) { return d ? d.toLocaleDateString('en-GB') : '—'; }
-function fmo(d)   { return d ? d.toLocaleDateString('en', { month: 'short', year: '2-digit' }) : ''; }
+function fdate(d) { return d ? d.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—'; }
+function fmo(d)   { return d ? d.toLocaleDateString('en', { month: 'short', year: '2-digit', timeZone: 'UTC' }) : ''; }
 function mkey(d)  { return d ? d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') : ''; }
 
 function badge(s) {
@@ -1107,6 +1107,8 @@ function switchTab(name, el) {
   document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('pane-' + name).classList.add('on');
+  // Resize all charts after tab becomes visible — charts in hidden tabs render at 0px otherwise
+  setTimeout(() => { Object.values(CH).forEach(c => { try { c.resize(); } catch(e){} }); }, 30);
 }
 
 /* ── BOOT ─────────────────────────────────────────────────── */
