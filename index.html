@@ -1,1698 +1,1117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Bleuface · Command Centre</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bleuface Command Centre</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
-/* ── TOKENS ─────────────────────────────────────────────── */
+/* ── TOKENS ───────────────────────────────────────────────── */
 :root{
-  --bg:#060E1D; --surface:#0C1A2E; --surface2:#112039; --surface3:#152540;
-  --border:rgba(0,192,255,.12); --border2:rgba(0,192,255,.22);
-  --cyan:#00C0FF; --cyan-dim:rgba(0,192,255,.15);
-  --gold:#E8B94C; --green:#00D898; --red:#FF4D5C;
-  --orange:#F5A623; --purple:#9B8AFB; --pink:#F472B6;
-  --text:#DDE8FF; --muted:#607898; --dim:#3A5278;
-  --font:'Sora',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
-  --radius:12px; --radius-sm:8px; --shadow:0 8px 32px rgba(0,0,0,.4);
+  --bg:#0a0e1a; --s1:#131929; --s2:#1c2438; --s3:#252f45;
+  --border:#2a3550; --border2:#374869;
+  --accent:#4f8ef7; --accent2:#7aaeff;
+  --text:#e8edf5; --muted:#7b8db8; --faint:#4a5a7a;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --purple:#a78bfa; --cyan:#22d3ee;
+  --green-bg:#0a2318; --red-bg:#2a0f0f; --amber-bg:#231900; --blue-bg:#0d1e3a;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px;scroll-behavior:smooth}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-button{cursor:pointer;border:none;background:none;font-family:inherit}
-input{font-family:inherit}
-canvas{display:block}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+     background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
 
-/* ── LOADING ─────────────────────────────────────────────── */
-#loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px;transition:opacity .4s}
-#loading-overlay.hidden{opacity:0;pointer-events:none}
-.loader-ring{width:56px;height:56px;border:3px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite}
+/* ── HEADER ───────────────────────────────────────────────── */
+#hdr{position:sticky;top:0;z-index:200;display:flex;align-items:center;
+     justify-content:space-between;padding:0 20px;height:52px;
+     background:var(--s1);border-bottom:1px solid var(--border);gap:12px}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--purple));
+          display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0}
+#hdr h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+#hdr h1 span{color:var(--accent2);font-weight:400}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+#ts{font-size:11px;color:var(--muted);white-space:nowrap}
+.btn{height:30px;padding:0 12px;border-radius:6px;border:1px solid var(--border2);
+     background:var(--s2);color:var(--text);cursor:pointer;font-size:12px;font-weight:500;
+     transition:background .15s,border-color .15s;white-space:nowrap}
+.btn:hover{background:var(--s3);border-color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2)}
+#file-inp{display:none}
+
+/* ── TABS ─────────────────────────────────────────────────── */
+#tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--border);
+      padding:0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:4px;
+      scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{padding:0 14px;height:44px;line-height:44px;font-size:12px;font-weight:600;
+     color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+     white-space:nowrap;transition:color .15s,border-color .15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent2);border-bottom-color:var(--accent2)}
+
+/* ── LOADING ──────────────────────────────────────────────── */
+#loading{display:none;flex-direction:column;align-items:center;justify-content:center;
+         height:calc(100vh - 96px);gap:14px}
+#loading.show{display:flex}
+.spin{width:34px;height:34px;border:3px solid var(--border2);border-top-color:var(--accent);
+      border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loader-text{color:var(--muted);font-size:13px;letter-spacing:.08em;max-width:420px;text-align:center;line-height:1.7}
-.loader-brand{font-size:26px;font-weight:800;color:var(--cyan);letter-spacing:.15em;text-transform:uppercase}
+#load-msg{font-size:12px;color:var(--muted)}
 
-/* ── SETUP PANEL (shown when no URL configured) ──────────── */
-#setup-panel{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:8888;gap:0;padding:24px}
-#setup-panel.hidden{display:none}
-.setup-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:32px 36px;max-width:540px;width:100%}
-.setup-title{font-size:18px;font-weight:700;color:var(--cyan);margin-bottom:8px}
-.setup-sub{font-size:12px;color:var(--muted);margin-bottom:24px;line-height:1.8}
-.setup-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:block}
-.setup-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:16px;transition:border-color .2s}
-.setup-input:focus{border-color:var(--cyan)}
-.setup-input::placeholder{color:var(--dim)}
-.setup-or{text-align:center;color:var(--muted);font-size:11px;margin:12px 0;position:relative}
-.setup-or::before,.setup-or::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:var(--border)}
-.setup-or::before{left:0} .setup-or::after{right:0}
-.setup-steps{background:var(--surface2);border-radius:var(--radius-sm);padding:14px 16px;font-size:11px;color:var(--muted);line-height:2;margin-bottom:20px}
-.setup-steps b{color:var(--text)}
+/* ── MAIN CONTENT ─────────────────────────────────────────── */
+#main{padding:20px;max-width:1380px;margin:0 auto;display:none}
+#main.show{display:block}
+.pane{display:none}
+.pane.on{display:block}
 
-/* ── HEADER ──────────────────────────────────────────────── */
-header{background:linear-gradient(135deg,#001733 0%,#00274D 50%,#003366 100%);border-bottom:1px solid var(--border2);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:100}
-.brand-logo{font-size:20px;font-weight:800;color:var(--cyan);letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(135deg,#00C0FF,#007AA8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.brand-tagline{font-size:9px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
-.header-meta{display:flex;align-items:center;gap:20px;font-size:11px;color:var(--muted);flex-wrap:wrap}
-.header-meta span{display:flex;align-items:center;gap:6px}
-.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-g 2s ease-in-out infinite;flex-shrink:0}
-@keyframes pulse-g{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,216,152,.3)}50%{opacity:.8;box-shadow:0 0 0 6px rgba(0,216,152,0)}}
-.status-dot.red{background:var(--red);animation:none}
-.btn-refresh{background:var(--cyan-dim);color:var(--cyan);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;transition:all .2s}
-.btn-refresh:hover{background:rgba(0,192,255,.25)}
-.btn-file{background:rgba(155,138,251,.12);color:var(--purple);border:1px solid rgba(155,138,251,.25);border-radius:var(--radius-sm);padding:6px 14px;font-size:11px;font-weight:600;transition:all .2s}
-.btn-file:hover{background:rgba(155,138,251,.22)}
-#file-input{display:none}
+/* ── ERROR BAR ────────────────────────────────────────────── */
+#err-bar{display:none;background:var(--red-bg);border:1px solid var(--red);
+         border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#fca5a5}
+#err-bar.show{display:block}
+#err-bar b{color:var(--red)}
 
-/* ── NAV ─────────────────────────────────────────────────── */
-nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:2px;overflow-x:auto}
-.nav-tab{padding:13px 18px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .2s}
-.nav-tab:hover{color:var(--text)}
-.nav-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+/* ── TOAST ────────────────────────────────────────────────── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;padding:10px 18px;border-radius:8px;
+       font-size:12px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s;
+       background:var(--green);color:#052e1c;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#toast.show{opacity:1}
 
-/* ── STATUS BAR ──────────────────────────────────────────── */
-#status-bar{display:none;padding:7px 32px;font-size:11px;background:rgba(0,216,152,.06);border-bottom:1px solid rgba(0,216,152,.15);color:var(--green);font-family:var(--mono)}
-#status-bar.error{background:rgba(255,77,92,.06);border-bottom-color:rgba(255,77,92,.2);color:var(--red)}
+/* ── KPI GRID ─────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+     position:relative;overflow:hidden;transition:border-color .2s}
+.kpi:hover{border-color:var(--border2)}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
+.kpi.blue::after{background:var(--accent)} .kpi.green::after{background:var(--green)}
+.kpi.amber::after{background:var(--amber)} .kpi.red::after{background:var(--red)}
+.kpi.purple::after{background:var(--purple)} .kpi.cyan::after{background:var(--cyan)}
+.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-val{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.3px;line-height:1}
+.kpi-sub{font-size:10px;color:var(--faint);margin-top:4px}
 
-/* ── LAYOUT ──────────────────────────────────────────────── */
-.section{display:none;padding:24px 32px;max-width:1600px;margin:0 auto}
-.section.active{display:block}
-.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.col-span-2{grid-column:span 2}
-.col-span-3{grid-column:span 3}
-.col-span-4{grid-column:span 4}
-.gap-top{margin-top:18px}
-@media(max-width:1200px){.grid4{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.col-span-2,.col-span-3,.col-span-4{grid-column:span 1}}
+/* ── AR CARDS ─────────────────────────────────────────────── */
+.ar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.ar{background:var(--s1);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;border-left-width:3px}
+.ar.out{border-left-color:var(--cyan)} .ar.ov{border-left-color:var(--red)}
+.ar.pend{border-left-color:var(--amber)} .ar.clr{border-left-color:var(--green)}
+.ar-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.ar-val{font-size:18px;font-weight:800;letter-spacing:-.2px}
+.ar.out .ar-val{color:var(--cyan)} .ar.ov .ar-val{color:var(--red)}
+.ar.pend .ar-val{color:var(--amber)} .ar.clr .ar-val{color:var(--green)}
+.ar-cnt{font-size:10px;color:var(--faint);margin-top:3px}
 
-/* ── SECTION HEADING ─────────────────────────────────────── */
-.sh{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;margin-top:4px;display:flex;align-items:center;gap:10px}
-.sh::after{content:'';flex:1;height:1px;background:var(--border)}
+/* ── CHART GRID ───────────────────────────────────────────── */
+.chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.chart-grid-32{display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:16px}
+.ccard{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px}
+.ccard-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;
+             letter-spacing:.4px;margin-bottom:12px}
+.chart-wrap{position:relative;height:210px}
 
-/* ── CARDS ───────────────────────────────────────────────── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;transition:transform .15s,box-shadow .15s}
-.card:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(0,0,0,.3)}
-.card-title{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
-.card-value{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--text);line-height:1}
-.card-sub{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
-.ac-cyan{border-left:3px solid var(--cyan)}
-.ac-green{border-left:3px solid var(--green)}
-.ac-red{border-left:3px solid var(--red)}
-.ac-orange{border-left:3px solid var(--orange)}
-.ac-gold{border-left:3px solid var(--gold)}
-.ac-purple{border-left:3px solid var(--purple)}
-.v-cyan{color:var(--cyan)} .v-green{color:var(--green)} .v-red{color:var(--red)}
-.v-gold{color:var(--gold)} .v-orange{color:var(--orange)} .v-purple{color:var(--purple)}
-
-/* ── PANEL ───────────────────────────────────────────────── */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
-.panel-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
-.panel-title{font-size:13px;font-weight:700;color:var(--text)}
-.panel-sub{font-size:11px;color:var(--muted)}
-.chart-wrap{position:relative}
-
-/* ── TABLES ──────────────────────────────────────────────── */
-.tbl-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
-.tbl-wrap::-webkit-scrollbar{width:4px;height:4px}
-.tbl-wrap::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+/* ── TABLE CARD ───────────────────────────────────────────── */
+.tcard{background:var(--s1);border:1px solid var(--border);border-radius:10px;
+       overflow:hidden;margin-bottom:14px}
+.tcard-head{display:flex;align-items:center;justify-content:space-between;
+            padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
+.tcard-title{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap}
+.tcard-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.srch{background:var(--s2);border:1px solid var(--border);border-radius:6px;
+      padding:5px 10px;color:var(--text);font-size:12px;width:190px;transition:border-color .15s}
+.srch::placeholder{color:var(--faint)}
+.srch:focus{outline:none;border-color:var(--accent)}
+.sel{background:var(--s2);border:1px solid var(--border);border-radius:6px;
+     padding:5px 8px;color:var(--text);font-size:12px;cursor:pointer}
+.sel:focus{outline:none}
+.twrap{overflow-x:auto;max-height:440px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{background:var(--surface2);color:var(--muted);font-weight:700;letter-spacing:.05em;text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap;font-size:10px;text-transform:uppercase;z-index:1}
-thead th:hover{color:var(--cyan)}
-tbody td{padding:9px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
-tbody tr:hover{background:rgba(0,192,255,.03)}
-tbody tr:last-child td{border-bottom:none}
-.num{text-align:right;font-family:var(--mono)}
+thead th{background:var(--s2);color:var(--muted);font-size:10px;font-weight:700;
+         text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;
+         position:sticky;top:0;z-index:1;text-align:left;white-space:nowrap;
+         border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid #14192b;transition:background .1s}
+tbody tr:hover{background:var(--s2)}
+td{padding:7px 12px;vertical-align:middle}
+.r{text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.mono{font-family:"SF Mono",Consolas,monospace;font-size:11px}
 
-/* ── PILLS ───────────────────────────────────────────────── */
-.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
-.p-cyan{background:rgba(0,192,255,.12);color:var(--cyan);border:1px solid rgba(0,192,255,.22)}
-.p-green{background:rgba(0,216,152,.12);color:var(--green);border:1px solid rgba(0,216,152,.22)}
-.p-red{background:rgba(255,77,92,.12);color:var(--red);border:1px solid rgba(255,77,92,.22)}
-.p-orange{background:rgba(245,166,35,.12);color:var(--orange);border:1px solid rgba(245,166,35,.22)}
-.p-gold{background:rgba(232,185,76,.12);color:var(--gold);border:1px solid rgba(232,185,76,.22)}
-.p-purple{background:rgba(155,138,251,.12);color:var(--purple);border:1px solid rgba(155,138,251,.22)}
-.p-pink{background:rgba(244,114,182,.12);color:var(--pink);border:1px solid rgba(244,114,182,.22)}
-.p-dim{background:rgba(60,82,120,.25);color:var(--muted);border:1px solid var(--border)}
+/* ── BADGES ───────────────────────────────────────────────── */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;
+       font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.b-g{background:var(--green-bg);color:var(--green)}
+.b-r{background:var(--red-bg);color:var(--red)}
+.b-a{background:var(--amber-bg);color:var(--amber)}
+.b-b{background:var(--blue-bg);color:var(--accent2)}
+.b-m{background:var(--s3);color:var(--muted)}
 
-/* ── SEARCH / FILTERS ────────────────────────────────────── */
-.search-input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;color:var(--text);font-size:12px;outline:none;width:200px;transition:border-color .2s}
-.search-input::placeholder{color:var(--muted)}
-.search-input:focus{border-color:var(--cyan)}
-.fgroup{display:flex;gap:5px;flex-wrap:wrap}
-.fbtn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 11px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s}
-.fbtn:hover{color:var(--text)}
-.fbtn.active{background:var(--cyan-dim);color:var(--cyan);border-color:var(--border2)}
+/* ── RANK CHIP ────────────────────────────────────────────── */
+.rk{display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:700;
+    background:var(--s3);color:var(--muted)}
+.rk.rk1{background:#78350f;color:#fef3c7} .rk.rk2{background:#374151;color:#e5e7eb}
+.rk.rk3{background:#431407;color:#fed7aa}
 
-/* ── BUTTONS ─────────────────────────────────────────────── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s}
-.btn-primary{background:var(--cyan);color:#001733}
-.btn-primary:hover{background:#00AADE}
-.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border)}
-.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
-.btn-success{background:rgba(0,216,152,.15);color:var(--green);border-color:rgba(0,216,152,.25)}
-.btn-success:hover{background:rgba(0,216,152,.25)}
-.btn-danger{background:rgba(255,77,92,.1);color:var(--red);border-color:rgba(255,77,92,.2)}
-.btn-danger:hover{background:rgba(255,77,92,.2)}
+/* ── SECTION HEAD ─────────────────────────────────────────── */
+.sec{font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;
+     letter-spacing:.6px;margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
 
-/* ── ALERTS ──────────────────────────────────────────────── */
-.alert{border-radius:var(--radius-sm);padding:12px 16px;border:1px solid;font-size:12px;display:flex;align-items:flex-start;gap:10px;line-height:1.6}
-.alert-red{background:rgba(255,77,92,.07);border-color:rgba(255,77,92,.22);color:#FF8A92}
-.alert-orange{background:rgba(245,166,35,.07);border-color:rgba(245,166,35,.22);color:#F5C070}
-.alert-green{background:rgba(0,216,152,.07);border-color:rgba(0,216,152,.22);color:#60E8C4}
+/* ── ALERT BOX ────────────────────────────────────────────── */
+.alert{border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.alert-r{background:var(--red-bg);border:1px solid #5a1a1a}
+.alert-a{background:var(--amber-bg);border:1px solid #5a3800}
+.alert h4{font-size:11px;font-weight:700;margin-bottom:8px}
+.alert-r h4{color:var(--red)} .alert-a h4{color:var(--amber)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;white-space:nowrap}
+.chip-r{background:#3d0f0f;border:1px solid #7a1f1f;color:#fca5a5}
+.chip-a{background:#3d2800;border:1px solid #7a5000;color:#fde68a}
 
-/* ── PROGRESS BAR ────────────────────────────────────────── */
-.prog-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
-.prog-fill{height:100%;border-radius:3px;transition:width .6s ease}
+/* ── P&L CARD ─────────────────────────────────────────────── */
+.pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.pl-card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.pl-card h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+            letter-spacing:.5px;margin-bottom:14px}
+.pl-row{display:flex;justify-content:space-between;align-items:center;
+        padding:6px 0;border-bottom:1px solid #14192b;font-size:12px}
+.pl-row:last-child{border-bottom:none}
+.pl-row.sub{font-weight:700;color:var(--accent2);font-size:13px;padding-top:8px}
+.pl-row.tot{font-weight:800;font-size:14px;padding-top:10px}
+.pl-row.tot.pos .pv{color:var(--green)} .pl-row.tot.neg .pv{color:var(--red)}
+.pl-ind{padding-left:14px;color:var(--muted);font-size:11px}
+.pv{font-variant-numeric:tabular-nums;font-weight:600}
 
-/* ── STOCK ROW HIGHLIGHTS ────────────────────────────────── */
-.stock-crit td:first-child{border-left:3px solid var(--red)}
-.stock-warn td:first-child{border-left:3px solid var(--orange)}
-.stock-dead{opacity:.55}
+/* ── NOTE BOX ─────────────────────────────────────────────── */
+.note{background:var(--blue-bg);border:1px solid var(--accent);border-radius:8px;
+      padding:10px 14px;font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.note b{color:var(--accent2)}
 
-/* ── SCROLLBAR GLOBAL ────────────────────────────────────── */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--dim);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+/* ── PROGRESS BAR ─────────────────────────────────────────── */
+.pbar{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:6px}
+.pbar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+
+/* ── GROWTH ARROWS ────────────────────────────────────────── */
+.up{color:var(--green);font-size:10px;font-weight:700}
+.dn{color:var(--red);font-size:10px;font-weight:700}
+.neu{color:var(--muted);font-size:10px}
+
+/* ── STAT ROW ─────────────────────────────────────────────── */
+.stat-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.stat{background:var(--s1);border:1px solid var(--border);border-radius:8px;
+      padding:10px 14px;min-width:130px}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.stat-v{font-size:15px;font-weight:800;color:var(--text)}
+
+/* ── RESPONSIVE ───────────────────────────────────────────── */
+@media(max-width:700px){
+  .ar-grid{grid-template-columns:1fr 1fr}
+  .chart-grid-2,.chart-grid-32{grid-template-columns:1fr}
+  .pl-grid{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  #hdr h1{font-size:13px}
+  #ts{display:none}
+}
+@media(max-width:420px){
+  .kpi-grid{grid-template-columns:1fr}
+  .ar-grid{grid-template-columns:1fr}
+  #main{padding:12px}
+}
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
-<div id="loading-overlay">
-  <div class="loader-brand">bleuface</div>
-  <div class="loader-ring"></div>
-  <div class="loader-text" id="load-msg">Connecting to GitHub…</div>
+<!-- HEADER -->
+<div id="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">BF</div>
+    <h1>Bleuface <span>Command Centre</span></h1>
+  </div>
+  <div class="hdr-right">
+    <span id="ts">Not loaded</span>
+    <button class="btn" onclick="document.getElementById('file-inp').click()">&#128194; Load File</button>
+    <button class="btn btn-primary" onclick="reloadData()">&#8635; Refresh</button>
+    <input type="file" id="file-inp" accept=".xlsx,.xls" onchange="loadLocalFile(this)">
+  </div>
 </div>
 
-<!-- SETUP PANEL -->
-<div id="setup-panel" class="hidden" style="display:none"></div>
+<!-- TABS -->
+<div id="tabs">
+  <div class="tab on" onclick="switchTab('overview',this)">Overview</div>
+  <div class="tab" onclick="switchTab('invoices',this)">Invoices</div>
+  <div class="tab" onclick="switchTab('liveinv',this)">Live Inventory</div>
+  <div class="tab" onclick="switchTab('salesinv',this)">Sales Inventory</div>
+  <div class="tab" onclick="switchTab('strategy',this)">Strategy</div>
+  <div class="tab" onclick="switchTab('finance',this)">Finance</div>
+</div>
 
-<!-- HEADER -->
-<header>
-  <div class="brand">
-    <div>
-      <div class="brand-logo">bleuface</div>
-      <div class="brand-tagline">Command Centre</div>
+<!-- LOADING -->
+<div id="loading" class="show">
+  <div class="spin"></div>
+  <div id="load-msg">Connecting to GitHub&#8230;</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="err-bar"></div>
+
+  <!-- OVERVIEW -->
+  <div id="pane-overview" class="pane on">
+    <div class="note"><b>Calculation note:</b> Gross Profit = Line Net &#8722; Line Cost. The 'Line Profit' column in the Excel file has a formula error in rows 1465&#8211;2017 and is intentionally ignored by this dashboard.</div>
+    <div id="ov-kpis" class="kpi-grid"></div>
+    <div id="ov-ar" class="ar-grid"></div>
+    <div class="chart-grid-2">
+      <div class="ccard"><div class="ccard-title">Monthly Net Revenue</div><div class="chart-wrap"><canvas id="ch-rev"></canvas></div></div>
+      <div class="ccard"><div class="ccard-title">Category Gross Profit Mix</div><div class="chart-wrap"><canvas id="ch-cat"></canvas></div></div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="ccard"><div class="ccard-title">Top 10 SKUs by Revenue</div><div class="chart-wrap"><canvas id="ch-sku"></canvas></div></div>
+      <div class="ccard"><div class="ccard-title">Top 10 Customers by Revenue</div><div class="chart-wrap"><canvas id="ch-cust"></canvas></div></div>
     </div>
   </div>
-  <div class="header-meta">
-    <span><span class="status-dot" id="status-dot"></span><span id="hdr-status">Loading…</span></span>
-    <span>All figures in PKR</span>
-    <span id="hdr-period"></span>
-    <button class="btn-file" onclick="document.getElementById('file-input').click()">📂 Load File</button>
-    <button class="btn-refresh" onclick="reloadData()">↺ Refresh</button>
-  </div>
-</header>
-<input type="file" id="file-input" accept=".xlsx,.xlsm,.xlsb" onchange="loadFromFile(this)"/>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-tab active" data-tab="overview">Overview</div>
-  <div class="nav-tab" data-tab="invoices">Invoices</div>
-  <div class="nav-tab" data-tab="liveinv">Live Inventory</div>
-  <div class="nav-tab" data-tab="inventory">Sales Inventory</div>
-  <div class="nav-tab" data-tab="strategy">Strategy</div>
-  <div class="nav-tab" data-tab="finance">Finance</div>
-</nav>
-
-<!-- STATUS BAR -->
-<div id="status-bar"></div>
-
-<!-- ═══ OVERVIEW ════════════════════════════════════════════ -->
-<section class="section active" id="sec-overview">
-  <div class="sh gap-top">Revenue &amp; Volume</div>
-  <div class="grid4">
-    <div class="card ac-cyan"><div class="card-title">Net Revenue</div><div class="card-value v-cyan" id="kpi-net">—</div><div class="card-sub" id="kpi-net-sub">after partner commission</div></div>
-    <div class="card ac-gold"><div class="card-title">Gross Sales</div><div class="card-value v-gold" id="kpi-gross">—</div><div class="card-sub" id="kpi-gross-sub"></div></div>
-    <div class="card"><div class="card-title">Units Sold</div><div class="card-value" id="kpi-units">—</div><div class="card-sub" id="kpi-units-sub"></div></div>
-    <div class="card"><div class="card-title">Orders</div><div class="card-value" id="kpi-orders">—</div><div class="card-sub" id="kpi-aov-sub"></div></div>
-  </div>
-
-  <div class="sh gap-top">Profitability</div>
-  <div class="grid4">
-    <div class="card ac-green"><div class="card-title">Gross Profit</div><div class="card-value v-green" id="kpi-profit">—</div><div class="card-sub">net − COGS</div></div>
-    <div class="card ac-green"><div class="card-title">Gross Margin %</div><div class="card-value v-green" id="kpi-margin">—</div><div class="card-sub">profit / net revenue</div></div>
-    <div class="card ac-red"><div class="card-title">Total Expenses</div><div class="card-value v-red" id="kpi-expenses">—</div><div class="card-sub">opex + drawings</div></div>
-    <div class="card ac-gold"><div class="card-title">Net Profit</div><div class="card-value" id="kpi-netprofit">—</div><div class="card-sub" id="kpi-netprofit-sub"></div></div>
-  </div>
-
-  <div class="sh gap-top">Receivables</div>
-  <div class="grid4">
-    <div class="card ac-cyan"><div class="card-title">Outstanding</div><div class="card-value v-cyan" id="kpi-outstanding">—</div><div class="card-sub" id="kpi-outstanding-sub"></div></div>
-    <div class="card ac-red"><div class="card-title">Overdue</div><div class="card-value v-red" id="kpi-overdue">—</div><div class="card-sub" id="kpi-overdue-sub"></div></div>
-    <div class="card ac-orange"><div class="card-title">Pending</div><div class="card-value v-orange" id="kpi-pending">—</div><div class="card-sub" id="kpi-pending-sub"></div></div>
-    <div class="card ac-green"><div class="card-title">Cleared</div><div class="card-value v-green" id="kpi-cleared">—</div><div class="card-sub" id="kpi-cleared-sub"></div></div>
-  </div>
-
-  <div class="sh gap-top">Customers &amp; FOC</div>
-  <div class="grid4">
-    <div class="card"><div class="card-title">B2B Customers</div><div class="card-value" id="kpi-custs">—</div><div class="card-sub" id="kpi-custs-sub"></div></div>
-    <div class="card"><div class="card-title">Active SKUs</div><div class="card-value" id="kpi-skus">—</div><div class="card-sub">unique products sold</div></div>
-    <div class="card ac-purple"><div class="card-title">FOC Units Given</div><div class="card-value v-purple" id="kpi-foc">—</div><div class="card-sub" id="kpi-foc-sub"></div></div>
-    <div class="card"><div class="card-title">Commission Paid</div><div class="card-value" id="kpi-comm">—</div><div class="card-sub" id="kpi-comm-sub"></div></div>
-  </div>
-
-  <div class="sh gap-top">Performance Charts</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Monthly Revenue &amp; Profit</span><span class="panel-sub">Net Revenue vs Gross Profit</span></div><div class="chart-wrap" style="height:270px"><canvas id="chart-monthly"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Category Revenue Mix</span><span class="panel-sub">Net Revenue by category</span></div><div class="chart-wrap" style="height:270px"><canvas id="chart-cat-rev"></canvas></div></div>
-  </div>
-  <div class="grid2 gap-top">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Top 10 SKUs by Revenue</span><span class="panel-sub">Net Revenue</span></div><div class="chart-wrap" style="height:270px"><canvas id="chart-sku-rev"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Top 10 Customers by Revenue</span><span class="panel-sub">Net Revenue</span></div><div class="chart-wrap" style="height:270px"><canvas id="chart-cust-rev"></canvas></div></div>
-  </div>
-</section>
-
-<!-- ═══ INVOICES ═════════════════════════════════════════════ -->
-<section class="section" id="sec-invoices">
-  <div class="sh gap-top">Invoice Management</div>
-  <div class="panel">
-    <div class="panel-hdr">
-      <span class="panel-title">Invoices &amp; Payments <span class="panel-sub" id="inv-today"></span></span>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input class="search-input" id="inv-search" placeholder="Search invoice / customer…"/>
-        <button class="btn btn-ghost" id="inv-export">Export CSV</button>
-      </div>
-    </div>
-    <div class="fgroup" style="margin-bottom:12px" id="inv-filter-btns">
-      <button class="fbtn active" data-f="all">All</button>
-      <button class="fbtn" data-f="overdue">Overdue</button>
-      <button class="fbtn" data-f="pending">Pending</button>
-      <button class="fbtn" data-f="partial">Partially Paid</button>
-      <button class="fbtn" data-f="cleared">Cleared</button>
-      <button class="fbtn" data-f="foc">FOC</button>
-    </div>
-    <div class="tbl-wrap">
-      <table id="tbl-inv">
-        <thead><tr>
-          <th data-sort="ref">Invoice</th>
-          <th data-sort="customer">Customer</th>
-          <th data-sort="date">Date</th>
-          <th data-sort="due">Due Date</th>
-          <th class="num" data-sort="amount">Invoice Amt</th>
-          <th class="num" data-sort="balance">Balance</th>
-          <th data-sort="status">Status</th>
-          <th data-sort="finalStatus">Final Status</th>
-          <th>Payment</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="card-sub" style="margin-top:10px">• Status read live from your Excel Invoice sheet. • Overdue = past due date with balance remaining.</div>
-  </div>
-
-  <div class="sh gap-top">FOC / Sample Tracker</div>
-  <div class="panel">
-    <div class="panel-hdr"><span class="panel-title">Free-of-Cost Items <span id="foc-pill" style="margin-left:8px"></span></span><span class="panel-sub">Inventory given for trial / evaluation</span></div>
-    <div class="tbl-wrap" style="max-height:280px">
-      <table id="tbl-foc">
-        <thead><tr>
-          <th>Date</th><th>Order</th><th>Customer</th><th>Product</th><th>Category</th>
-          <th class="num">Qty</th><th class="num">Ref. Price</th><th class="num">Cost (PKR)</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ LIVE INVENTORY ═══════════════════════════════════════ -->
-<section class="section" id="sec-liveinv">
-  <div class="sh gap-top">Live Warehouse Count</div>
-  <div class="grid4">
-    <div class="card ac-cyan"><div class="card-title">Total Usable Stock</div><div class="card-value v-cyan" id="li-total">—</div><div class="card-sub">units across all SKUs</div></div>
-    <div class="card ac-red"><div class="card-title">Damaged Units</div><div class="card-value v-red" id="li-damage">—</div><div class="card-sub">logged damage count</div></div>
-    <div class="card ac-green"><div class="card-title">Return Units</div><div class="card-value v-green" id="li-returns">—</div><div class="card-sub">returned to stock</div></div>
-    <div class="card ac-gold"><div class="card-title">Total On Hand</div><div class="card-value v-gold" id="li-onhand">—</div><div class="card-sub">incl. incoming POs</div></div>
-  </div>
-
-  <div class="sh gap-top">Stock Count by SKU</div>
-  <div class="panel">
-    <div class="panel-hdr">
-      <span class="panel-title">Live Inventory Status</span>
-      <div style="display:flex;gap:8px">
-        <input class="search-input" id="li-search" placeholder="Search product…"/>
-        <div class="fgroup" id="li-filter-btns">
-          <button class="fbtn active" data-lf="all">All</button>
-          <button class="fbtn" data-lf="damage">Has Damage</button>
-          <button class="fbtn" data-lf="zero">Zero Stock</button>
-          <button class="fbtn" data-lf="po">Has PO</button>
+  <!-- INVOICES -->
+  <div id="pane-invoices" class="pane">
+    <div id="inv-ar" class="ar-grid"></div>
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tcard-title">All Invoices</div>
+        <div class="tcard-ctrl">
+          <input class="srch" id="inv-srch" placeholder="Search customer or ref&#8230;" oninput="filterInv()">
+          <select class="sel" id="inv-sel" onchange="filterInv()">
+            <option value="">All Status</option>
+            <option value="Cleared">Cleared</option>
+            <option value="Overdue">Overdue</option>
+            <option value="Pending">Pending</option>
+          </select>
+          <button class="btn" style="font-size:11px;height:28px;padding:0 10px" onclick="exportInvCSV()">&#11015; CSV</button>
         </div>
       </div>
-    </div>
-    <div class="tbl-wrap">
-      <table id="tbl-live">
-        <thead><tr>
-          <th data-sort="product">Product</th>
-          <th class="num" data-sort="purchasedQty">Purchased</th>
-          <th class="num" data-sort="currentCount">Counted</th>
-          <th class="num" data-sort="damage">Damage</th>
-          <th data-sort="damageNotes">Damage Notes</th>
-          <th class="num" data-sort="returns">Returns</th>
-          <th class="num" data-sort="usable">Usable Stock</th>
-          <th class="num" data-sort="pendingPO">Pending PO</th>
-          <th class="num" data-sort="totalOnHand">Total On Hand</th>
-          <th class="num" data-sort="totalUseable">Total Useable</th>
-          <th>Alert</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
+      <div class="twrap"><table id="inv-tbl"><thead></thead><tbody></tbody></table></div>
     </div>
   </div>
 
-  <div class="grid2 gap-top">
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title" style="color:var(--red)">⛔ Zero / Critical Stock</span><span class="panel-sub">Needs immediate replenishment</span></div>
-      <div id="li-zero-list"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title" style="color:var(--orange)">⚠ Damage Log</span><span class="panel-sub">SKUs with logged damage</span></div>
-      <div id="li-damage-list"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ SALES INVENTORY ══════════════════════════════════════ -->
-<section class="section" id="sec-inventory">
-  <div class="sh gap-top">Warehouse Overview (Sales-Based)</div>
-  <div class="grid4">
-    <div class="card ac-cyan"><div class="card-title">Total Stock Value</div><div class="card-value v-cyan" id="inv-val">—</div><div class="card-sub">capital in unsold inventory</div></div>
-    <div class="card ac-orange"><div class="card-title">Low Stock SKUs</div><div class="card-value v-orange" id="inv-low">—</div><div class="card-sub">&lt;20% of purchased qty remaining</div></div>
-    <div class="card ac-red"><div class="card-title">Dead Stock SKUs</div><div class="card-value v-red" id="inv-dead">—</div><div class="card-sub">zero sales in last 30 days</div></div>
-    <div class="card"><div class="card-title">Avg Days of Stock</div><div class="card-value" id="inv-days">—</div><div class="card-sub">at current 30-day sell rate</div></div>
-  </div>
-
-  <div class="sh gap-top">Stock-to-Sales Ratio</div>
-  <div class="panel">
-    <div class="panel-hdr"><span class="panel-title">Inventory Status by SKU</span><span class="panel-sub">Days of remaining stock at current velocity</span></div>
-    <div class="tbl-wrap">
-      <table id="tbl-stock">
-        <thead><tr>
-          <th data-sort="product">Product</th>
-          <th data-sort="category">Category</th>
-          <th class="num" data-sort="purchasedQty">Purchased</th>
-          <th class="num" data-sort="soldQty">Sold</th>
-          <th class="num" data-sort="remaining">Remaining</th>
-          <th class="num" data-sort="stockPct">Stock %</th>
-          <th class="num" data-sort="sales30d">30d Sales</th>
-          <th class="num" data-sort="daysOfStock">Days of Stock</th>
-          <th class="num" data-sort="stockValue">Stock Value</th>
-          <th>Alert</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
+  <!-- LIVE INVENTORY -->
+  <div id="pane-liveinv" class="pane">
+    <div id="li-stats" class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))"></div>
+    <div id="li-alerts"></div>
+    <div class="tcard">
+      <div class="tcard-head"><div class="tcard-title">Warehouse Stock Count</div></div>
+      <div class="twrap"><table id="li-tbl"><thead></thead><tbody></tbody></table></div>
     </div>
   </div>
 
-  <div class="grid2 gap-top">
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title" style="color:var(--orange)">⚠ Low Stock Alerts</span><span class="panel-sub">&lt;20% remaining</span></div>
-      <div id="inv-lowlist"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title" style="color:var(--red)">⛔ Dead Stock</span><span class="panel-sub">No sales in last 30 days</span></div>
-      <div id="inv-deadlist"></div>
-    </div>
-  </div>
-
-  <div class="sh gap-top">Inventory Tracker (from Inventory Tracker sheet)</div>
-  <div class="panel">
-    <div class="panel-hdr"><span class="panel-title">All SKUs — Cost &amp; Qty Breakdown</span><span class="panel-sub">Direct from Inventory Tracker sheet in Excel</span></div>
-    <div class="tbl-wrap">
-      <table id="tbl-tracker">
-        <thead><tr>
-          <th data-sort="product">Product</th>
-          <th class="num" data-sort="unitCost">Unit Cost</th>
-          <th class="num" data-sort="qtyInHand">Qty In Hand</th>
-          <th class="num" data-sort="costInHand">Cost In Hand</th>
-          <th class="num" data-sort="qtySold">Qty Sold</th>
-          <th class="num" data-sort="costSold">Cost of Stock Sold</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
+  <!-- SALES INVENTORY -->
+  <div id="pane-salesinv" class="pane">
+    <div id="si-stats" class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))"></div>
+    <div id="si-alerts"></div>
+    <div class="tcard">
+      <div class="tcard-head"><div class="tcard-title">SKU Stock Health</div></div>
+      <div class="twrap"><table id="si-tbl"><thead></thead><tbody></tbody></table></div>
     </div>
   </div>
 
-  <div class="sh gap-top">Stock Valuation by Category</div>
-  <div class="panel">
-    <div class="chart-wrap" style="height:250px"><canvas id="chart-stock-val"></canvas></div>
-  </div>
-</section>
-
-<!-- ═══ STRATEGY ═════════════════════════════════════════════ -->
-<section class="section" id="sec-strategy">
-  <div class="sh gap-top">Growth Trends</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Monthly Growth Rate</span><span class="panel-sub">Month-over-month net revenue change</span></div><div class="chart-wrap" style="height:240px"><canvas id="chart-growth"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Monthly P&amp;L</span><span class="panel-sub">Revenue vs Cost vs Gross Profit</span></div><div class="chart-wrap" style="height:240px"><canvas id="chart-pnl"></canvas></div></div>
-  </div>
-
-  <div class="sh gap-top">Category Intelligence</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Category Profit Contribution</span><span class="panel-sub">Which categories actually make money</span></div><div class="chart-wrap" style="height:260px"><canvas id="chart-cat-profit"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Category Detail</span><span class="panel-sub">Revenue, cost &amp; margin by category</span></div>
-      <div class="tbl-wrap" style="max-height:260px">
-        <table id="tbl-cat">
-          <thead><tr>
-            <th data-sort="category">Category</th>
-            <th class="num" data-sort="net">Net (PKR)</th>
-            <th class="num" data-sort="cost">Cost</th>
-            <th class="num" data-sort="profit">Profit</th>
-            <th class="num" data-sort="margin">Margin</th>
-            <th class="num" data-sort="units">Units</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
+  <!-- STRATEGY -->
+  <div id="pane-strategy" class="pane">
+    <div class="chart-grid-32">
+      <div class="ccard"><div class="ccard-title">Monthly Revenue &amp; Gross Profit</div><div class="chart-wrap" style="height:230px"><canvas id="ch-growth"></canvas></div></div>
+      <div class="ccard"><div class="ccard-title">Category GP Share</div><div class="chart-wrap" style="height:230px"><canvas id="ch-cat2"></canvas></div></div>
+    </div>
+    <div class="sec">Monthly P&amp;L</div>
+    <div class="tcard"><div class="twrap"><table id="st-pl"><thead></thead><tbody></tbody></table></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+      <div>
+        <div class="sec">Customer Rankings</div>
+        <div class="tcard"><div class="twrap"><table id="st-cust"><thead></thead><tbody></tbody></table></div></div>
+      </div>
+      <div>
+        <div class="sec">SKU ROI Analysis</div>
+        <div class="tcard"><div class="twrap"><table id="st-roi"><thead></thead><tbody></tbody></table></div></div>
       </div>
     </div>
   </div>
 
-  <div class="sh gap-top">Partner Intelligence</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">🐳 Top 5 Partners</span><span class="panel-sub">By net revenue</span></div><div class="chart-wrap" style="height:260px"><canvas id="chart-whale"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Full Partner Rankings</span><span class="panel-sub">All customers by net revenue</span></div>
-      <div class="tbl-wrap" style="max-height:260px">
-        <table id="tbl-cust">
-          <thead><tr>
-            <th data-sort="rank">#</th>
-            <th data-sort="customer">Customer</th>
-            <th class="num" data-sort="net">Net (PKR)</th>
-            <th class="num" data-sort="profit">Profit</th>
-            <th class="num" data-sort="margin">Margin</th>
-            <th class="num" data-sort="orders">Orders</th>
-            <th data-sort="last">Last Order</th>
-            <th data-sort="status">Status</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+  <!-- FINANCE -->
+  <div id="pane-finance" class="pane">
+    <div class="pl-grid">
+      <div class="pl-card" id="fin-pl"></div>
+      <div class="pl-card" id="fin-be"></div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="ccard"><div class="ccard-title">Monthly Gross Profit vs Expenses</div><div class="chart-wrap"><canvas id="ch-fin1"></canvas></div></div>
+      <div class="ccard"><div class="ccard-title">Expense Breakdown</div><div class="chart-wrap"><canvas id="ch-fin2"></canvas></div></div>
     </div>
   </div>
 
-  <div class="sh gap-top">SKU Intelligence</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">ROI per SKU</span><span class="panel-sub">Profit ÷ Cost (top 20)</span></div><div class="chart-wrap" style="height:320px"><canvas id="chart-roi"></canvas></div></div>
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title">Full SKU Performance</span><input class="search-input" id="sku-search" placeholder="Search SKUs…" style="width:150px"/></div>
-      <div class="tbl-wrap" style="max-height:320px">
-        <table id="tbl-sku">
-          <thead><tr>
-            <th data-sort="product">Product</th>
-            <th data-sort="category">Cat.</th>
-            <th class="num" data-sort="units">Units</th>
-            <th class="num" data-sort="net">Net</th>
-            <th class="num" data-sort="profit">Profit</th>
-            <th class="num" data-sort="margin">Margin</th>
-            <th class="num" data-sort="roi">ROI %</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
+</div><!-- /main -->
 
-<!-- ═══ FINANCE ══════════════════════════════════════════════ -->
-<section class="section" id="sec-finance">
-  <div class="sh gap-top">P&amp;L Summary</div>
-  <div class="grid4">
-    <div class="card ac-cyan"><div class="card-title">Net Revenue</div><div class="card-value v-cyan" id="fin-net">—</div><div class="card-sub">after partner commission</div></div>
-    <div class="card ac-red"><div class="card-title">Cost of Goods</div><div class="card-value v-red" id="fin-cogs">—</div><div class="card-sub" id="fin-cogs-sub"></div></div>
-    <div class="card ac-green"><div class="card-title">Gross Profit</div><div class="card-value v-green" id="fin-gp">—</div><div class="card-sub" id="fin-gp-sub"></div></div>
-    <div class="card ac-red"><div class="card-title">Operating Expenses</div><div class="card-value v-red" id="fin-opex">—</div><div class="card-sub" id="fin-opex-sub"></div></div>
-    <div class="card ac-purple"><div class="card-title">Drawings</div><div class="card-value v-purple" id="fin-draw">—</div><div class="card-sub">owner withdrawals</div></div>
-    <div class="card ac-gold"><div class="card-title">Net Profit / Loss</div><div class="card-value" id="fin-np">—</div><div class="card-sub" id="fin-np-sub"></div></div>
-    <div class="card"><div class="card-title">Expense / Revenue</div><div class="card-value" id="fin-exp-ratio">—</div><div class="card-sub">opex as % of net revenue</div></div>
-    <div class="card"><div class="card-title">Net Profit Margin</div><div class="card-value" id="fin-npm">—</div><div class="card-sub">net profit / net revenue</div></div>
-  </div>
-
-  <div class="sh gap-top">Breakeven Analysis</div>
-  <div class="grid2">
-    <div class="panel">
-      <div class="panel-hdr"><span class="panel-title">Breakeven Threshold</span><span class="panel-sub">Revenue needed to cover all fixed costs</span></div>
-      <div class="grid2" style="margin-bottom:16px">
-        <div class="card" style="background:var(--surface2)"><div class="card-title">Breakeven Revenue</div><div class="card-value v-orange" id="be-rev">—</div><div class="card-sub">opex ÷ gross margin %</div></div>
-        <div class="card" style="background:var(--surface2)"><div class="card-title">Breakeven Units</div><div class="card-value" id="be-units">—</div><div class="card-sub">at avg selling price</div></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px"><span>0</span><span id="be-curr-lbl"></span><span id="be-max-lbl"></span></div>
-      <div class="prog-bar" style="height:14px"><div class="prog-fill" id="be-prog" style="background:var(--green);width:0%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:6px">
-        <span id="be-pct" style="font-weight:700"></span>
-        <span id="be-msg" style="color:var(--muted)"></span>
-      </div>
-      <div id="be-safety" style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.7"></div>
-    </div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Revenue Waterfall</span><span class="panel-sub">From gross sales to net profit</span></div><div class="chart-wrap" style="height:240px"><canvas id="chart-waterfall"></canvas></div></div>
-  </div>
-
-  <div class="sh gap-top">Expense Breakdown</div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Expense by Category</span><span class="panel-sub">All operating expenses</span></div><div class="chart-wrap" style="height:260px"><canvas id="chart-exp-cat"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="panel-title">Monthly Expense Trend</span><span class="panel-sub">Expenses vs Revenue by month</span></div><div class="chart-wrap" style="height:260px"><canvas id="chart-exp-monthly"></canvas></div></div>
-  </div>
-
-  <div class="sh gap-top">Expense Detail</div>
-  <div class="panel">
-    <div class="panel-hdr">
-      <span class="panel-title">All Expenses</span>
-      <div class="fgroup" id="exp-cat-filters"></div>
-    </div>
-    <div class="tbl-wrap">
-      <table id="tbl-exp">
-        <thead><tr>
-          <th data-sort="date">Date</th>
-          <th data-sort="category">Category</th>
-          <th data-sort="description">Description</th>
-          <th class="num" data-sort="amount">Amount (PKR)</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-</body>
-</html>
 <script>
-/* ══════════════════════════════════════════════════════════
-   BLEUFACE COMMAND CENTRE — Dashboard Engine
-   Reads directly from .xlsx via SheetJS (local file or OneDrive)
-   ══════════════════════════════════════════════════════════ */
+/* ================================================================
+   BLEUFACE COMMAND CENTRE  —  index.html
+   GP computed as Line Net - Line Cost (never reads Line Profit column)
+   ================================================================ */
 
-/* ── CONFIG ─────────────────────────────────────────────── */
-const CFG = {
-  GITHUB_EXCEL_URL: 'https://raw.githubusercontent.com/abdussamadquraishi99-eng/BleuFace-Dashboard/main/BF%20DB.xlsx',
-  PAYMENT_TERMS_DAYS: 30,
-  AUTO_REFRESH_MS: 5 * 60 * 1000,   // 5 minutes
-  LOW_STOCK_THRESHOLD: 0.20,
-  DEAD_STOCK_DAYS: 30,
-};
+const GITHUB_URL = 'https://raw.githubusercontent.com/abdussamadquraishi99-eng/BleuFace-Dashboard/main/BF%20DB.xlsx';
+const REFRESH_MS = 300000;
+const PERIOD_DAYS = 210;  // Nov 2025 – Jun 2026
 
-/* ── CHART DEFAULTS ─────────────────────────────────────── */
-Chart.defaults.color = '#607898';
-Chart.defaults.font.family = "'Sora', system-ui";
-Chart.defaults.font.size = 11;
-const GRID = 'rgba(60,82,120,0.2)';
-const PAL = ['#00C0FF','#E8B94C','#00D898','#9B8AFB','#F472B6','#FB923C','#34D399','#818CF8','#FCD34D','#F87171','#38BDF8','#A78BFA','#2DD4BF','#FB7185'];
-
-/* ── FORMATTERS ─────────────────────────────────────────── */
-const fmt = {
-  money: n => (n==null||isNaN(n)) ? '—' : Math.round(n).toLocaleString(),
-  compact: n => {
-    if (n==null||isNaN(n)) return '—';
-    const a=Math.abs(n), s=n<0?'−':'';
-    if(a>=1e6) return s+'Rs.'+(a/1e6).toFixed(2)+'M';
-    if(a>=1e3) return s+'Rs.'+(a/1e3).toFixed(1)+'K';
-    return s+'Rs.'+Math.round(a).toLocaleString();
-  },
-  pct1: n => (n==null||isNaN(n)) ? '—' : (n*100).toFixed(1)+'%',
-  pct0: n => (n==null||isNaN(n)) ? '—' : (n*100).toFixed(0)+'%',
-  int: n => (n==null||isNaN(n)) ? '—' : Math.round(n).toLocaleString(),
-  date: d => (d instanceof Date && !isNaN(d)) ? d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—',
-};
-
-/* ── DATE HELPERS ───────────────────────────────────────── */
-const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-function excelDate(n) {
-  if(!n||isNaN(n)) return null;
-  return new Date(Math.round((n-25569)*86400000));
+/* ── CHARTS ───────────────────────────────────────────────── */
+const CH = {};
+function mkChart(id, cfg) {
+  if (CH[id]) { CH[id].destroy(); delete CH[id]; }
+  const cv = document.getElementById(id);
+  if (!cv) return;
+  CH[id] = new Chart(cv, cfg);
 }
+Chart.defaults.color = '#7b8db8';
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+
+/* ── UTILITIES ────────────────────────────────────────────── */
+function parseNum(v) {
+  if (v === null || v === undefined || v === '' || v === '-' || v === '—') return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  const s = String(v).replace(/[PKRpkr,\s]/g, '').trim();
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseBool(v) {
+  if (v === true || v === 1) return true;
+  if (typeof v === 'string') return v.trim().toUpperCase() === 'TRUE' || v.trim() === '1';
+  return false;
+}
+
 function parseDate(v) {
-  if(v==null||v==='') return null;
-  const n=parseFloat(v);
-  if(!isNaN(n)&&n>40000&&n<80000) return excelDate(n);
-  if(typeof v==='string'&&v.trim()) {
-    const s=v.trim();
-    if(/^\d{4}-\d{2}-\d{2}/.test(s)){const d=new Date(s);if(!isNaN(d))return d;}
-    if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)){const p=s.split('/');const d=new Date(p[2],p[1]-1,p[0]);if(!isNaN(d))return d;}
-    const d=new Date(s);if(!isNaN(d.getTime()))return d;
+  if (!v && v !== 0) return null;
+  if (typeof v === 'number') {
+    // Excel serial date: days since Jan 0 1900 (with Excel's leap year bug)
+    const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Try multiple column name variants — handles spaces, case, underscores
+function col(row) {
+  const names = Array.from(arguments).slice(1);
+  for (const name of names) {
+    if (row[name] !== undefined && row[name] !== null) return row[name];
+    const lo = name.trim().toLowerCase();
+    for (const k of Object.keys(row)) {
+      if (k.trim().toLowerCase() === lo) return row[k];
+    }
   }
   return null;
 }
-function monthKey(d){ return (d instanceof Date&&!isNaN(d))?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`:''; }
-function daysBetween(a,b){ return Math.round((b-a)/86400000); }
-function normBarcode(b){ return (b||'').replace(/[\s\-]+/g,'').toUpperCase(); }
 
-/* ── ROBUST NUMBER PARSER ───────────────────────────────── */
-function parseNum(v) {
-  if(v==null||v==='') return 0;
-  if(typeof v==='number') return isFinite(v)?v:0;
-  const cleaned=String(v).replace(/,/g,'').trim();
-  const match=cleaned.match(/-?\d+(?:\.\d+)?/);
-  return match?parseFloat(match[0]):0;
-}
-
-/* ── FLEXIBLE COLUMN LOOKUP ─────────────────────────────── */
-function col(row, ...names) {
-  for(const n of names) if(row[n]!==undefined) return row[n];
-  const keys=Object.keys(row);
-  for(const n of names){
-    const cl=n.trim().toLowerCase();
-    const f=keys.find(k=>k.replace(/^\uFEFF/,'').trim().toLowerCase()===cl);
-    if(f!==undefined) return row[f];
+// Find sheet by name with fallback fuzzy match
+function findSheet(wb, ...names) {
+  for (const name of names) {
+    if (wb.Sheets[name]) return XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: null, raw: true });
   }
-  return undefined;
-}
-
-/* ── STATE ──────────────────────────────────────────────── */
-let ORDERS=[], PRODUCTS=[], EXPENSES=[], DRAWINGS=[], INVOICES=[], LIVE_INV=[], INV_TRACKER=[], CUSTOMERS=[];
-const charts={};
-
-/* ══ GITHUB RAW URL ══════════════════════════════════════════
-   Excel file is served directly from GitHub raw — no auth,
-   no CORS issues, updates within ~5min of a push.
-   ──────────────────────────────────────────────────────── */
-
-/* ══ SHEET READER ═══════════════════════════════════════════
-   Parses a workbook (ArrayBuffer) into named sheet arrays.
-   ──────────────────────────────────────────────────────── */
-function parseWorkbook(arrayBuffer) {
-  const wb = XLSX.read(arrayBuffer, {type:'array', cellDates:false, raw:false});
-  const sheets = {};
-  wb.SheetNames.forEach(name => {
-    const ws = wb.Sheets[name];
-    if(!ws) return;
-    const data = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
-    sheets[name] = data;
-  });
-  return sheets;
-}
-
-/* ══ DATA MAPPERS ═══════════════════════════════════════════ */
-function mapOrders(rows) {
-  return rows.map(r=>({
-    orderRef:     String(col(r,'Order Ref','OrderRef')||'').trim(),
-    orderDate:    parseDate(col(r,'Order Date','OrderDate','Date')),
-    customer:     String(col(r,'Customer','Client')||'').trim(),
-    product:      String(col(r,'Product','SKU')||'').trim(),
-    barcode:      normBarcode(String(col(r,'Barcode')||'')),
-    category:     String(col(r,'Category')||'').trim(),
-    quantity:     parseNum(col(r,'Quantity','Qty')),
-    productPrice: parseNum(col(r,'Product Price','Price')),
-    commPct:      parseNum(col(r,'Commission %','Comm %')),
-    lineComm:     parseNum(col(r,'Line Commission','Commission')),
-    lineNet:      parseNum(col(r,'Line Net','Net')),
-    lineGross:    parseNum(col(r,'Line Gross','Gross')),
-    unitCost:     parseNum(col(r,'Unit Cost','Unit Cost (PKR)')),
-    lineCost:     parseNum(col(r,'Line Cost','Cost')),
-    lineProfit:   parseNum(col(r,'Line Profit','Profit')),
-    isFOC:        String(col(r,'Is FOC','FOC')||'').toUpperCase().trim()==='TRUE',
-    mode:         String(col(r,'Mode')||'').trim(),
-  })).filter(r=>r.orderRef&&r.orderRef!=='Order Ref'&&r.product);
-}
-
-function mapInvoices(rows) {
-  return rows.map(r=>({
-    ref:          String(col(r,'Ref no.','Order Ref','Invoice','Ref no')||'').trim(),
-    customer:     String(col(r,'Contact','Customer')||'').trim(),
-    date:         parseDate(col(r,'Date')),
-    dueDate:      parseDate(col(r,'Due Date Actual','Due Date','Due')),
-    amount:       parseNum(col(r,'Invoice Amount','Net (PKR)','Net','Invoice Amt')),
-    balance:      parseNum(col(r,'Total Balance','Balance')),
-    status:       String(col(r,'Status')||'').trim(),
-    finalStatus:  String(col(r,'Final Status')||'').trim(),
-    payment:      String(col(r,'Payment')||'').trim(),
-    paymentMode:  String(col(r,'Payment Mode')||'').trim(),
-    paymentOverdue:parseNum(col(r,'Payment Overdue')),
-    type:         String(col(r,'Type')||'Invoice').trim(),
-    isFOC:        String(col(r,'Final Status')||'').toLowerCase().includes('foc'),
-  })).filter(r=>r.ref&&r.ref!=='Ref no.');
-}
-
-function mapProducts(rows) {
-  return rows.map(r=>({
-    product:     String(r['Product']||'').trim(),
-    barcode:     normBarcode(String(r['Barcode (normalised)']||r['Barcode']||'')),
-    purchasedQty:parseNum(r['Purchased Qty']||r['Purchased Qty ']),
-    unitCost:    parseNum(r['Unit Cost (PKR)']||r['Unit Cost']),
-    sellingPrice:parseNum(r['Selling Price']||0),
-    category:    String(r['Category']||'').trim(),
-  })).filter(r=>r.product);
-}
-
-function mapExpenses(rows) {
-  return rows.map(r=>({
-    date:        parseDate(r['Date']),
-    category:    String(r['Category']||'').trim(),
-    description: String(r['Description']||r['Type of Expense']||'').trim(),
-    amount:      parseNum(r['Amount (PKR)']||r['Amount']),
-  })).filter(r=>r.amount>0);
-}
-
-function mapDrawings(rows) {
-  return rows.map(r=>({
-    date:        parseDate(r['Date']),
-    category:    'Drawings',
-    description: String(r['Description']||'Drawing').trim(),
-    amount:      parseNum(r['Amount (PKR)']||r['Amount']),
-  })).filter(r=>r.amount>0);
-}
-
-function mapLiveInventory(rows) {
-  return rows.map(r=>({
-    sno:         String(r['S.No']||'').trim(),
-    product:     String(r['Product']||'').trim(),
-    purchasedQty:parseNum(r['Purchased QTY']||r['Purchased Qty']),
-    currentCount:parseNum(r['Current Stock Count']||r['Qty in Real Time']),
-    damage:      parseNum(r['Damage']),
-    damageNotes: String(r['Damage Notes']||'').trim(),
-    returns:     parseNum(r['Return']),
-    returnNotes: String(r['Return Notes']||'').trim(),
-    usable:      parseNum(r['Total Usable  Inventory in Hand']||r['Total Usable Inventory in Hand']||r['Usable']),
-    pendingPO:   parseNum(r['PO from 3 jun to 8 Jun']||r['PO Till 2 Jun']||0),
-    totalOnHand: parseNum(r['Total On hand Inventory']||r['Total On Hand Inventory']),
-    totalUseable:parseNum(r['Total Inventory Useable']||r['Total Useable']),
-  })).filter(r=>r.product&&r.product!=='Product');
-}
-
-function mapInvTracker(rows) {
-  return rows.map(r=>({
-    product:    String(r['Product']||'').trim(),
-    unitCost:   parseNum(r['Unit Cost']),
-    qtyInHand:  parseNum(r['Qty In Hand']),
-    costInHand: parseNum(r['Cost of Inventory in Hand']),
-    qtySold:    parseNum(r['Qty Sold']),
-    costSold:   parseNum(r['Cost of Stock Sold']),
-  })).filter(r=>r.product&&r.product!=='Product');
-}
-
-function mapCustomers(rows) {
-  return rows.map(r=>({
-    name:       String(r['Customer Name']||'').trim(),
-    city:       String(r['City']||'').trim(),
-    mode:       String(r['Mode']||'').trim(),
-    commission: parseNum(r['Comission']||r['Commission']),
-  })).filter(r=>r.name);
-}
-
-/* ══ SHEET NAME FUZZY FINDER ════════════════════════════════ */
-function findSheet(sheets, ...candidates) {
-  for(const c of candidates){
-    const found=Object.keys(sheets).find(k=>k.trim().toLowerCase()===c.toLowerCase());
-    if(found) return sheets[found]||[];
-  }
-  // partial match
-  for(const c of candidates){
-    const found=Object.keys(sheets).find(k=>k.trim().toLowerCase().includes(c.toLowerCase()));
-    if(found) return sheets[found]||[];
+  for (const name of names) {
+    const lo = name.toLowerCase();
+    for (const s of wb.SheetNames) {
+      if (s.toLowerCase().includes(lo)) return XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: null, raw: true });
+    }
   }
   return [];
 }
 
-/* ══ LOAD FROM ARRAYBUFFER ══════════════════════════════════ */
-function loadFromArrayBuffer(buf, source) {
-  setLoadMsg('Parsing workbook…');
-  let sheets;
-  try { sheets = parseWorkbook(buf); }
-  catch(e) { throw new Error('Could not read Excel file: '+e.message); }
-
-  const sheetNames = Object.keys(sheets);
-  console.log('📋 Sheets found:', sheetNames);
-
-  // Map all sheets
-  const orderRows = findSheet(sheets,'B2B Orders','Orders','B2B Orders');
-  ORDERS   = mapOrders(orderRows);
-  INVOICES = mapInvoices(findSheet(sheets,'Invoice','Invoices'));
-  PRODUCTS = mapProducts(findSheet(sheets,'Products'));
-  EXPENSES = mapExpenses(findSheet(sheets,'Expense','Expenses'));
-  DRAWINGS = mapDrawings(findSheet(sheets,'Drawings'));
-  LIVE_INV = mapLiveInventory(findSheet(sheets,'Live Inventory'));
-  INV_TRACKER = mapInvTracker(findSheet(sheets,'Inventory Tracker'));
-  CUSTOMERS = mapCustomers(findSheet(sheets,'Customers'));
-
-  if(ORDERS.length===0) throw new Error('No order rows found. Check the "B2B Orders" sheet exists and has data.');
-
-  // Data quality diagnostics
-  const totalNet=ORDERS.reduce((s,r)=>s+r.lineNet,0);
-  const totalGross=ORDERS.reduce((s,r)=>s+r.lineGross,0);
-  const totalProfit=ORDERS.reduce((s,r)=>s+r.lineProfit,0);
-  console.log('📊 Aggregate totals:',{
-    'Net Revenue': Math.round(totalNet).toLocaleString(),
-    'Gross Sales': Math.round(totalGross).toLocaleString(),
-    'Gross Profit': Math.round(totalProfit).toLocaleString(),
-  });
-  if(totalProfit>totalNet) console.warn('⚠️ Gross Profit exceeds Net Revenue — check column mapping or number parsing.');
-  if(totalGross<totalNet) console.warn('⚠️ Gross Sales < Net Revenue — possible column mapping issue.');
-
-  setLoadMsg('Rendering dashboard…');
-  render();
-
-  // Update header
-  const dot = document.getElementById('status-dot');
-  dot.classList.remove('red');
-  document.getElementById('hdr-status').textContent =
-    ORDERS.length.toLocaleString()+' rows · '+new Date().toLocaleTimeString()+' · '+source;
-
-  // Status bar
-  const sb = document.getElementById('status-bar');
-  sb.className='';
-  sb.innerHTML =
-    `<b>✓ ${ORDERS.length} order rows</b> · ${PRODUCTS.length} products · `+
-    `${INVOICES.length} invoices · ${EXPENSES.length} expenses · `+
-    `${DRAWINGS.length} drawings · ${LIVE_INV.length} live inv rows · `+
-    `${INV_TRACKER.length} tracker rows · ${CUSTOMERS.length} customers · `+
-    `<span style="color:var(--muted)">${source}</span>`;
-  sb.style.display='block';
-
-  // Hide loading
-  document.getElementById('loading-overlay').classList.add('hidden');
-}
-
-/* ══ LOAD FROM FILE PICKER ══════════════════════════════════ */
-function loadFromFile(input) {
-  const f = input.files[0];
-  if(!f) return;
-  document.getElementById('loading-overlay').classList.remove('hidden');
-  setLoadMsg('Reading '+f.name+'…');
-  const reader = new FileReader();
-  reader.onload = e => {
-    try { loadFromArrayBuffer(e.target.result, f.name); }
-    catch(err) { showError(err.message); }
-  };
-  reader.readAsArrayBuffer(f);
-  input.value='';
-}
-
-/* ══ FETCH EXCEL FROM GITHUB ════════════════════════════════ */
-async function loadFromGitHub() {
-  // Add cache-busting so browser always gets latest version
-  const url = CFG.GITHUB_EXCEL_URL + '?t=' + Date.now();
-  setLoadMsg('Fetching latest data from GitHub…');
-  const res = await fetch(url);
-  if(!res.ok) throw new Error(`GitHub fetch failed: ${res.status} ${res.statusText}\n\nMake sure BF DB.xlsx is pushed to your repo.`);
-  return await res.arrayBuffer();
-}
-
-/* ══ MAIN LOAD ORCHESTRATOR ═════════════════════════════════ */
-async function startLoad() {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.remove('hidden');
-  setLoadMsg('Connecting to GitHub…');
-
-  try {
-    const buf = await loadFromGitHub();
-    loadFromArrayBuffer(buf, 'GitHub');
-  } catch(err) {
-    console.error('GitHub load failed:', err);
-    showError(err.message);
+function fk(n, compact) {
+  // Format PKR value
+  if (n === null || n === undefined) return '—';
+  const a = Math.abs(n), sign = n < 0 ? '-' : '';
+  if (compact) {
+    if (a >= 1e7) return sign + 'PKR ' + (a / 1e6).toFixed(1) + 'M';
+    if (a >= 1e5) return sign + 'PKR ' + (a / 1e3).toFixed(0) + 'K';
   }
+  return sign + 'PKR ' + Math.round(a).toLocaleString('en');
+}
+function fn(n)  { return n === null || n === undefined ? '—' : Math.round(n).toLocaleString('en'); }
+function fp(n)  { return n === null || n === undefined ? '—' : (n * 100).toFixed(2) + '%'; }
+function fp1(n) { return n === null || n === undefined ? '—' : (n * 100).toFixed(1) + '%'; }
+function fdate(d) { return d ? d.toLocaleDateString('en-GB') : '—'; }
+function fmo(d)   { return d ? d.toLocaleDateString('en', { month: 'short', year: '2-digit' }) : ''; }
+function mkey(d)  { return d ? d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') : ''; }
+
+function badge(s) {
+  const m = { Cleared: 'b-g', Overdue: 'b-r', Pending: 'b-a', 'FOC Invoice': 'b-b', 'Partially Paid': 'b-a' };
+  return `<span class="badge ${m[s] || 'b-m'}">${s || '—'}</span>`;
+}
+function rankBadge(i) {
+  const c = i === 0 ? 'rk1' : i === 1 ? 'rk2' : i === 2 ? 'rk3' : '';
+  return `<span class="rk ${c}">${i + 1}</span>`;
 }
 
+/* ── DATA STORE ───────────────────────────────────────────── */
+let D = {};
+
+/* ── LOADING ──────────────────────────────────────────────── */
 async function reloadData() {
-  try { await startLoad(); } catch(e) { /* handled inside */ }
+  setLoadMsg('Connecting to GitHub…');
+  showLoad(true);
+  try {
+    setLoadMsg('Downloading Excel file…');
+    const res = await fetch(GITHUB_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' — check your internet connection');
+    setLoadMsg('Parsing data…');
+    const buf = await res.arrayBuffer();
+    processWorkbook(buf, true);
+  } catch (e) {
+    showLoad(false);
+    showErr('<b>Could not load from GitHub:</b> ' + e.message +
+      '<br>Use the <b>&#128194; Load File</b> button to load your Excel file directly from your computer.');
+  }
 }
 
-/* ══ COMPUTE ALL METRICS ════════════════════════════════════ */
-function computeMetrics() {
-  const orders=ORDERS;
-  const cutoff30=new Date(TODAY.getTime()-30*864e5);
+function loadLocalFile(inp) {
+  const f = inp.files[0]; if (!f) return;
+  showLoad(true); setLoadMsg('Reading file…');
+  clearErr();
+  const fr = new FileReader();
+  fr.onload = e => processWorkbook(e.target.result, false);
+  fr.onerror = () => { showLoad(false); showErr('<b>Could not read file.</b> Make sure it is a valid .xlsx file.'); };
+  fr.readAsArrayBuffer(f);
+}
 
-  // Revenue aggregates
-  const totalNet    = orders.reduce((s,r)=>s+r.lineNet,0);
-  const totalGross  = orders.reduce((s,r)=>s+r.lineGross,0);
-  const totalCost   = orders.reduce((s,r)=>s+r.lineCost,0);
-  const totalProfit = orders.reduce((s,r)=>s+r.lineProfit,0);
-  const totalComm   = orders.reduce((s,r)=>s+r.lineComm,0);
-  const totalUnits  = orders.reduce((s,r)=>s+r.quantity,0);
-  const focOrders   = orders.filter(r=>r.isFOC);
-  const focUnits    = focOrders.reduce((s,r)=>s+r.quantity,0);
-  const focCost     = focOrders.reduce((s,r)=>s+r.lineCost,0);
+function processWorkbook(buf, fromGithub) {
+  try {
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: true });
+    D.orders    = findSheet(wb, 'B2B Orders');
+    D.invoice   = findSheet(wb, 'Invoice');
+    D.expense   = findSheet(wb, 'Expense');
+    D.drawings  = findSheet(wb, 'Drawings');
+    D.products  = findSheet(wb, 'Products');
+    D.customers = findSheet(wb, 'Customers');
+    D.liveInv   = findSheet(wb, 'Live Inventory', 'LiveInventory');
+    D.tracker   = findSheet(wb, 'Inventory Tracker', 'InventoryTracker');
 
-  // Date range
-  const dates=orders.map(r=>r.orderDate).filter(Boolean);
-  const minDate=dates.length?new Date(Math.min(...dates)):TODAY;
-  const maxDate=dates.length?new Date(Math.max(...dates)):TODAY;
-  const periodDays=Math.max(1,daysBetween(minDate,maxDate)+1);
+    if (!D.orders.length) throw new Error('B2B Orders sheet is empty or missing');
 
-  // Order groups
-  const orderMap={};
-  orders.forEach(r=>{
-    if(!orderMap[r.orderRef]) orderMap[r.orderRef]={orderRef:r.orderRef,customer:r.customer,date:r.orderDate,net:0,cost:0,profit:0,units:0,hasFOC:false};
-    const o=orderMap[r.orderRef];
-    o.net+=r.lineNet; o.cost+=r.lineCost; o.profit+=r.lineProfit; o.units+=r.quantity;
-    if(r.isFOC) o.hasFOC=true;
-  });
-  const uniqueOrders=Object.values(orderMap);
+    computeAll();
+    renderAll();
+    showLoad(false);
+    clearErr();
+    document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    if (fromGithub) toast('Data refreshed');
+  } catch (e) {
+    showLoad(false);
+    showErr('<b>Error processing file:</b> ' + e.message + '<br>Make sure you have not renamed any sheets.');
+    console.error(e);
+  }
+}
 
-  // Customer map
-  const custMap={};
-  orders.forEach(r=>{
-    if(!custMap[r.customer]) custMap[r.customer]={customer:r.customer,net:0,cost:0,profit:0,units:0,orders:new Set(),lastDate:null};
-    const c=custMap[r.customer];
-    c.net+=r.lineNet; c.cost+=r.lineCost; c.profit+=r.lineProfit; c.units+=r.quantity;
-    c.orders.add(r.orderRef);
-    if(!c.lastDate||r.orderDate>c.lastDate) c.lastDate=r.orderDate;
-  });
-  const customers=Object.values(custMap).map(c=>({
-    ...c,orders:c.orders.size,margin:c.net>0?c.profit/c.net:0,
-    daysSince:c.lastDate?daysBetween(c.lastDate,TODAY):999,
-    status:c.lastDate?(daysBetween(c.lastDate,TODAY)<=30?'Active':daysBetween(c.lastDate,TODAY)<=90?'At-Risk':'Lapsed'):'Unknown',
-  })).sort((a,b)=>b.net-a.net).map((c,i)=>({...c,rank:i+1}));
+/* ── COMPUTE ──────────────────────────────────────────────── */
+function computeAll() {
+  computeOrders();
+  computeInvoices();
+  computeInventory();
+  computeExpenses();
+}
 
-  // SKU map
-  const skuMap={};
-  orders.forEach(r=>{
-    if(!skuMap[r.product]) skuMap[r.product]={product:r.product,barcode:r.barcode,category:r.category,net:0,cost:0,profit:0,units:0,sales30d:0};
-    const s=skuMap[r.product];
-    s.net+=r.lineNet; s.cost+=r.lineCost; s.profit+=r.lineProfit; s.units+=r.quantity;
-    if(r.orderDate&&r.orderDate>=cutoff30) s.sales30d+=r.quantity;
-  });
-  const skus=Object.values(skuMap).map(s=>({...s,margin:s.net>0?s.profit/s.net:0,roi:s.cost>0?s.profit/s.cost:0})).sort((a,b)=>b.net-a.net);
+function computeOrders() {
+  const monthly = {}, catMap = {}, custMap = {}, skuMap = {};
+  let grossSales = 0, netRev = 0, cogs = 0, commission = 0, units = 0;
+  const orders = new Set(), customers = new Set(), skus = new Set();
 
-  // Category map
-  const catMap={};
-  orders.forEach(r=>{
-    if(!catMap[r.category]) catMap[r.category]={category:r.category,net:0,cost:0,profit:0,units:0};
-    const c=catMap[r.category];
-    c.net+=r.lineNet; c.cost+=r.lineCost; c.profit+=r.lineProfit; c.units+=r.quantity;
-  });
-  const categories=Object.values(catMap).map(c=>({...c,margin:c.net>0?c.profit/c.net:0})).sort((a,b)=>b.profit-a.profit);
+  for (const row of D.orders) {
+    // Skip FOC rows
+    if (parseBool(col(row, 'Is FOC', 'Is FOC ', 'IsFOC', 'FOC'))) continue;
 
-  // Monthly map
-  const monthMap={};
-  orders.forEach(r=>{
-    if(!r.orderDate) return;
-    const mk=monthKey(r.orderDate);
-    if(!monthMap[mk]) monthMap[mk]={month:mk,net:0,cost:0,profit:0,units:0,orders:new Set()};
-    const m=monthMap[mk];
-    m.net+=r.lineNet; m.cost+=r.lineCost; m.profit+=r.lineProfit; m.units+=r.quantity;
-    m.orders.add(r.orderRef);
-  });
-  const months=Object.values(monthMap).map(m=>({...m,orders:m.orders.size})).sort((a,b)=>a.month.localeCompare(b.month));
+    const lineNet   = parseNum(col(row, 'Line Net'));
+    const lineCost  = parseNum(col(row, 'Line Cost'));
+    const lineGross = parseNum(col(row, 'Line Gross'));
+    const lineComm  = parseNum(col(row, 'Line Commission'));
+    const qty       = parseNum(col(row, 'Quantity'));
 
-  // Invoice KPIs — from INVOICES sheet (live payment status)
-  let outstanding=0,outCount=0,overdue=0,overCount=0,pending=0,pendCount=0,cleared=0,clearCount=0;
-  INVOICES.forEach(inv=>{
-    const fs=(inv.finalStatus||'').toLowerCase();
-    const bal=inv.balance;
-    if(fs==='cleared'||fs.includes('cleared')){cleared+=inv.amount;clearCount++;}
-    else if(fs==='overdue'){overdue+=bal||inv.paymentOverdue;overCount++;outstanding+=bal;outCount++;}
-    else{
-      pending+=bal||inv.amount;pendCount++;
-      outstanding+=bal||inv.amount;outCount++;
-    }
-  });
+    // ✅ CORRECT: never use Line Profit column — compute directly
+    const gp = lineNet - lineCost;
 
-  // Products index
-  const prodByBarcode={};
-  PRODUCTS.forEach(p=>{prodByBarcode[normBarcode(p.barcode)]=p;});
-  const prodByName={};
-  PRODUCTS.forEach(p=>{prodByName[p.product.toLowerCase()]=p;});
+    const ref      = col(row, 'Order Ref') || '';
+    const cust     = (col(row, 'Customer') || 'Unknown').toString().trim();
+    const prod     = (col(row, 'Product')  || 'Unknown').toString().trim();
+    const cat      = (col(row, 'Category') || 'Other').toString().trim();
+    const dRaw     = col(row, 'Order Date');
+    const d        = parseDate(dRaw);
+    const mk       = mkey(d);
 
-  // Inventory rows
-  const inventoryRows=skus.map(s=>{
-    const prod=prodByBarcode[s.barcode]||prodByName[s.product.toLowerCase()]||null;
-    const purchasedQty=prod?prod.purchasedQty:null;
-    const remaining=purchasedQty!=null?Math.max(0,purchasedQty-s.units):null;
-    const stockPct=purchasedQty&&purchasedQty>0?remaining/purchasedQty:null;
-    const daysOfStock=s.sales30d>0&&remaining!=null?remaining/(s.sales30d/30):null;
-    const unitCost=prod?prod.unitCost:s.cost/(s.units||1);
-    const stockValue=remaining!=null?remaining*unitCost:0;
-    return {
-      ...s,purchasedQty,remaining,stockPct,daysOfStock,stockValue,unitCost,
-      isLowStock:stockPct!=null&&stockPct<CFG.LOW_STOCK_THRESHOLD&&remaining>0,
-      isDead:s.sales30d===0&&remaining!=null&&remaining>0,
-    };
-  });
+    grossSales += lineGross;
+    netRev     += lineNet;
+    cogs       += lineCost;
+    commission += lineComm;
+    units      += qty;
+    orders.add(ref);
+    customers.add(cust);
+    skus.add(prod);
 
-  const totalStockValue=inventoryRows.reduce((s,r)=>s+(r.stockValue||0),0);
-  const lowStockSKUs=inventoryRows.filter(r=>r.isLowStock);
-  const deadStockSKUs=inventoryRows.filter(r=>r.isDead);
-  const finiteDS=inventoryRows.filter(r=>r.daysOfStock!=null&&isFinite(r.daysOfStock));
-  const avgDaysStock=finiteDS.length?finiteDS.reduce((s,r)=>s+r.daysOfStock,0)/finiteDS.length:0;
+    // Monthly
+    if (!monthly[mk]) monthly[mk] = { key: mk, date: d, rev: 0, cogs: 0, gp: 0, units: 0 };
+    monthly[mk].rev  += lineNet;
+    monthly[mk].cogs += lineCost;
+    monthly[mk].gp   += gp;
+    monthly[mk].units += qty;
 
-  // Live inventory KPIs
-  const liTotalUsable = LIVE_INV.reduce((s,r)=>s+r.usable,0);
-  const liTotalDamage  = LIVE_INV.reduce((s,r)=>s+r.damage,0);
-  const liTotalReturns = LIVE_INV.reduce((s,r)=>s+r.returns,0);
-  const liTotalOnHand  = LIVE_INV.reduce((s,r)=>s+r.totalOnHand,0);
+    // Category
+    if (!catMap[cat]) catMap[cat] = { rev: 0, gp: 0, cogs: 0, units: 0 };
+    catMap[cat].rev  += lineNet;
+    catMap[cat].gp   += gp;
+    catMap[cat].cogs += lineCost;
+    catMap[cat].units += qty;
 
-  // Expenses
-  const totalOpex   = EXPENSES.reduce((s,e)=>s+e.amount,0);
-  const totalDraw   = DRAWINGS.reduce((s,e)=>s+e.amount,0);
-  const totalExpenses = totalOpex+totalDraw;
-  const grossProfit = totalProfit;
-  const netProfit   = grossProfit-totalOpex-totalDraw;
-  const expRatio    = totalNet>0?totalOpex/totalNet:0;
-  const netMargin   = totalNet>0?netProfit/totalNet:0;
-  const grossMarginPct = totalNet>0?grossProfit/totalNet:0;
-  const breakEvenRev = grossMarginPct>0?totalOpex/grossMarginPct:null;
-  const avgUnitPrice = totalUnits>0?totalNet/totalUnits:0;
-  const breakEvenUnits = avgUnitPrice>0&&breakEvenRev?breakEvenRev/avgUnitPrice:null;
+    // Customer
+    if (!custMap[cust]) custMap[cust] = { rev: 0, gp: 0, cogs: 0, units: 0, orders: new Set() };
+    custMap[cust].rev  += lineNet;
+    custMap[cust].gp   += gp;
+    custMap[cust].cogs += lineCost;
+    custMap[cust].units += qty;
+    custMap[cust].orders.add(ref);
 
-  // Expense by category
-  const expCatMap={};
-  EXPENSES.forEach(e=>{ expCatMap[e.category]=(expCatMap[e.category]||0)+e.amount; });
+    // SKU
+    if (!skuMap[prod]) skuMap[prod] = { rev: 0, gp: 0, cogs: 0, units: 0 };
+    skuMap[prod].rev  += lineNet;
+    skuMap[prod].gp   += gp;
+    skuMap[prod].cogs += lineCost;
+    skuMap[prod].units += qty;
+  }
 
-  // Monthly expense map
-  const expMonthMap={};
-  EXPENSES.forEach(e=>{
-    if(e.date instanceof Date&&!isNaN(e.date)){
-      const mk=monthKey(e.date);
-      if(mk) expMonthMap[mk]=(expMonthMap[mk]||0)+e.amount;
-    }
-  });
+  D.totals = { grossSales, netRev, cogs, gp: netRev - cogs, commission, units,
+    nOrders: orders.size, nCustomers: customers.size, nSKUs: skus.size };
 
-  // MoM growth
-  const momGrowth=months.map((m,i)=>{
-    if(i===0) return{month:m.month,pct:null,net:m.net};
-    const prev=months[i-1].net;
-    return{month:m.month,pct:prev>0?(m.net-prev)/prev:null,net:m.net};
-  });
+  D.monthly = Object.values(monthly).sort((a, b) => a.key.localeCompare(b.key));
 
-  // FOC items
-  const focItems=focOrders.slice().sort((a,b)=>(b.orderDate||0)-(a.orderDate||0));
+  D.cats = Object.entries(catMap)
+    .map(([k, v]) => ({ name: k, ...v }))
+    .sort((a, b) => b.gp - a.gp);
 
-  // Customer activity
-  const active=customers.filter(c=>c.daysSince<=30).length;
-  const atRisk=customers.filter(c=>c.daysSince>30&&c.daysSince<=90).length;
-  const lapsed=customers.filter(c=>c.daysSince>90).length;
+  D.custRank = Object.entries(custMap)
+    .map(([k, v]) => ({ name: k, rev: v.rev, gp: v.gp, cogs: v.cogs, units: v.units, orders: v.orders.size }))
+    .sort((a, b) => b.rev - a.rev);
 
-  return {
-    totalNet,totalGross,totalCost,totalProfit,totalComm,totalUnits,
-    totalOrders:uniqueOrders.length,
-    focUnits,focCost,focItems,
-    avgOrderValue:uniqueOrders.length>0?totalNet/uniqueOrders.length:0,
-    avgUnitPrice,periodDays,minDate,maxDate,
-    customers,skus,categories,months,momGrowth,
-    outstanding,outCount,overdue,overCount,pending,pendCount,cleared,clearCount,
-    inventoryRows,totalStockValue,lowStockSKUs,deadStockSKUs,avgDaysStock,
-    liTotalUsable,liTotalDamage,liTotalReturns,liTotalOnHand,
-    totalOpex,totalDraw,totalExpenses,grossProfit,netProfit,
-    expRatio,netMargin,grossMarginPct,breakEvenRev,breakEvenUnits,
-    expCatMap,expMonthMap,
-    active,atRisk,lapsed,
-    commPct:totalGross>0?totalComm/totalGross:0,
+  D.skuROI = Object.entries(skuMap)
+    .map(([k, v]) => ({ name: k, rev: v.rev, gp: v.gp, cogs: v.cogs, units: v.units,
+      roi: v.cogs > 0 ? v.gp / v.cogs : 0 }))
+    .sort((a, b) => b.roi - a.roi);
+}
+
+function computeInvoices() {
+  D.invRows = [];
+  for (const r of D.invoice) {
+    const invAmt  = parseNum(col(r, 'Invoice Amount'));
+    const balance = parseNum(col(r, 'Total Balance'));
+    const status  = (col(r, 'Final Status') || '').toString().trim();
+    const contact = (col(r, 'Contact') || '').toString().trim();
+    const ref     = (col(r, 'Ref no.', 'Ref No.', 'Ref no', 'RefNo') || '').toString();
+    const mode    = (col(r, 'Status') || '').toString().trim();
+    const payment = (col(r, 'Payment') || '').toString().trim();
+    const d       = parseDate(col(r, 'Date'));
+    const due     = parseDate(col(r, 'Due Date Actual', 'Due Date'));
+
+    // Only include rows that have meaningful data
+    if (!contact && !ref && invAmt === 0) continue;
+    // Skip FOC with zero amounts and no useful status
+    if (invAmt === 0 && balance === 0 && status === '') continue;
+
+    D.invRows.push({ d, ref, contact, mode, invAmt, balance, status, due, payment });
+  }
+
+  const ov = D.invRows.filter(r => r.status === 'Overdue');
+  const pd = D.invRows.filter(r => r.status === 'Pending');
+  const cl = D.invRows.filter(r => r.status === 'Cleared');
+
+  D.ar = {
+    outstanding: D.invRows.reduce((s, r) => s + r.balance, 0),
+    overdue:     ov.reduce((s, r) => s + r.balance, 0),
+    pending:     pd.reduce((s, r) => s + r.balance, 0),
+    cleared:     cl.reduce((s, r) => s + r.invAmt, 0),
+    nOverdue: ov.length, nPending: pd.length, nCleared: cl.length,
   };
 }
 
-/* ══ RENDER ALL ═════════════════════════════════════════════ */
-function render() {
-  const M=computeMetrics();
-  renderOverview(M);
-  renderInvoices(M);
-  renderLiveInventory();
-  renderInventory(M);
-  renderStrategy(M);
-  renderFinance(M);
-  document.getElementById('hdr-period').textContent=
-    `Period: ${fmt.date(M.minDate)} → ${fmt.date(M.maxDate)}`;
-  document.getElementById('inv-today').textContent=`Today: ${TODAY.toLocaleDateString('en-GB')}`;
+function computeInventory() {
+  // Live Inventory
+  let usableTotal = 0, onHandTotal = 0, damageTotal = 0, returnTotal = 0;
+  D.liveRows = [];
+  for (const r of D.liveInv) {
+    const prod = (col(r, 'Product') || '').toString().trim();
+    if (!prod) continue;
+    const usable  = parseNum(col(r, 'Total Usable  Inventory in Hand', 'Total Usable Inventory in Hand', 'Total Usable Inv in Hand'));
+    const onHand  = parseNum(col(r, 'Total On hand Inventory', 'Total On Hand Inventory'));
+    const damage  = parseNum(col(r, 'Damage'));
+    const ret     = parseNum(col(r, 'Return'));
+    const dNote   = (col(r, 'Damage Notes') || '').toString().trim();
+    const rNote   = (col(r, 'Return Notes') || '').toString().trim();
+    usableTotal  += usable;
+    onHandTotal  += onHand;
+    damageTotal  += damage;
+    returnTotal  += ret;
+    D.liveRows.push({ prod, usable, onHand, damage, ret, dNote, rNote });
+  }
+  D.liveSummary = { usableTotal, onHandTotal, damageTotal, returnTotal };
+
+  // Inventory Tracker
+  let stockVal = 0;
+  D.trackerRows = [];
+  for (const r of D.tracker) {
+    const prod = (col(r, 'Product') || '').toString().trim();
+    if (!prod) continue;
+    const unitCost = parseNum(col(r, 'Unit Cost'));
+    const qtyHand  = parseNum(col(r, 'Qty In Hand', 'Qty in Hand'));
+    const sv       = parseNum(col(r, 'Cost of Inventory in Hand'));
+    const qtySold  = parseNum(col(r, 'Qty Sold'));
+    const dailyRate = qtySold / PERIOD_DAYS;
+    const dos       = dailyRate > 0 ? qtyHand / dailyRate : (qtyHand > 0 ? 9999 : 0);
+    stockVal += sv;
+    D.trackerRows.push({ prod, unitCost, qtyHand, sv, qtySold, dailyRate, dos });
+  }
+
+  const active = D.trackerRows.filter(r => r.dailyRate > 0 && r.dos < 9999);
+  const avgDOS = active.length ? active.reduce((s, r) => s + r.dos, 0) / active.length : 0;
+
+  D.invSummary = {
+    stockVal,
+    avgDOS,
+    lowStock:   D.trackerRows.filter(r => r.qtyHand > 0 && r.dos < 30),
+    soldOut:    D.trackerRows.filter(r => r.qtyHand === 0 && r.qtySold > 0),
+    neverSold:  D.trackerRows.filter(r => r.qtySold === 0 && r.qtyHand === 0),
+  };
+
+  D.trackerRows.sort((a, b) => {
+    // Sort: low stock first, then by name
+    if (a.qtyHand === 0 && b.qtyHand > 0) return -1;
+    if (a.qtyHand > 0 && b.qtyHand === 0) return 1;
+    if (a.dos < 30 && b.dos >= 30) return -1;
+    if (a.dos >= 30 && b.dos < 30) return 1;
+    return a.prod.localeCompare(b.prod);
+  });
 }
 
-/* ══ OVERVIEW ═══════════════════════════════════════════════ */
-function renderOverview(M) {
-  $('kpi-net').textContent=fmt.compact(M.totalNet);
-  $('kpi-net-sub').textContent=`${fmt.pct1(M.commPct)} commission discount`;
-  $('kpi-gross').textContent=fmt.compact(M.totalGross);
-  $('kpi-gross-sub').textContent=`Blended margin ${fmt.pct1(M.grossMarginPct)} on net`;
-  $('kpi-units').textContent=fmt.int(M.totalUnits);
-  $('kpi-units-sub').textContent=`${fmt.int(M.totalUnits/M.periodDays)} units/day avg`;
-  $('kpi-orders').textContent=fmt.int(M.totalOrders);
-  $('kpi-aov-sub').textContent=`AOV ${fmt.compact(M.avgOrderValue)}`;
+function computeExpenses() {
+  D.expTotal  = D.expense.reduce((s, r)  => s + parseNum(col(r, 'Amount (PKR)', 'Amount')), 0);
+  D.drawTotal = D.drawings.reduce((s, r) => s + parseNum(col(r, 'Amount (PKR)', 'Amount')), 0);
 
-  $('kpi-profit').textContent=fmt.compact(M.grossProfit);
-  $('kpi-margin').textContent=fmt.pct1(M.grossMarginPct);
-  $('kpi-expenses').textContent=fmt.compact(M.totalExpenses);
-  const npEl=$('kpi-netprofit');
-  npEl.textContent=fmt.compact(M.netProfit);
-  npEl.style.color=M.netProfit>=0?'var(--gold)':'var(--red)';
-  $('kpi-netprofit-sub').textContent=`Net margin ${fmt.pct1(M.netMargin)}`;
+  // By category
+  const ec = {};
+  for (const r of D.expense) {
+    const cat = (col(r, 'Category') || 'Other').toString().trim();
+    ec[cat] = (ec[cat] || 0) + parseNum(col(r, 'Amount (PKR)', 'Amount'));
+  }
+  D.expByCat = Object.entries(ec).map(([k, v]) => ({ name: k, amt: v })).sort((a, b) => b.amt - a.amt);
 
-  $('kpi-outstanding').textContent=fmt.compact(M.outstanding);
-  $('kpi-outstanding-sub').textContent=`${M.outCount} unpaid invoices`;
-  $('kpi-overdue').textContent=fmt.compact(M.overdue);
-  $('kpi-overdue-sub').textContent=`${M.overCount} past due date`;
-  $('kpi-pending').textContent=fmt.compact(M.pending);
-  $('kpi-pending-sub').textContent=`${M.pendCount} invoices`;
-  $('kpi-cleared').textContent=fmt.compact(M.cleared);
-  $('kpi-cleared-sub').textContent=`${M.clearCount} paid`;
+  // Monthly (for P&L, include drawings)
+  D.mExp = {};
+  for (const r of D.expense) {
+    const d = parseDate(col(r, 'Date'));
+    if (!d) continue;
+    const k = mkey(d);
+    D.mExp[k] = (D.mExp[k] || 0) + parseNum(col(r, 'Amount (PKR)', 'Amount'));
+  }
+  for (const r of D.drawings) {
+    const d = parseDate(col(r, 'Date'));
+    if (!d) continue;
+    const k = mkey(d);
+    D.mExp[k] = (D.mExp[k] || 0) + parseNum(col(r, 'Amount (PKR)', 'Amount'));
+  }
+}
 
-  $('kpi-foc').textContent=fmt.int(M.focUnits);
-  $('kpi-foc-sub').textContent=`Cost value ${fmt.compact(M.focCost)}`;
-  $('kpi-comm').textContent=fmt.compact(M.totalComm);
-  $('kpi-comm-sub').textContent=`${fmt.pct1(M.commPct)} blended rate`;
-  $('kpi-custs').textContent=fmt.int(M.customers.length);
-  $('kpi-custs-sub').textContent=`${M.active} active · ${M.atRisk} at-risk · ${M.lapsed} lapsed`;
-  $('kpi-skus').textContent=fmt.int(M.skus.length);
+/* ── RENDER ───────────────────────────────────────────────── */
+function renderAll() {
+  renderOverview();
+  renderInvoices();
+  renderLiveInv();
+  renderSalesInv();
+  renderStrategy();
+  renderFinance();
+}
 
-  // Monthly chart
-  destroyChart('chart-monthly');
-  charts['chart-monthly']=new Chart($('chart-monthly'),{
-    type:'line',
-    data:{
-      labels:M.months.map(m=>m.month),
-      datasets:[
-        {label:'Net Revenue',data:M.months.map(m=>m.net),borderColor:PAL[0],backgroundColor:'rgba(0,192,255,.07)',tension:.35,fill:true,pointRadius:4,pointBackgroundColor:PAL[0]},
-        {label:'Gross Profit',data:M.months.map(m=>m.profit),borderColor:PAL[2],backgroundColor:'rgba(0,216,152,.05)',tension:.35,fill:true,pointRadius:4,pointBackgroundColor:PAL[2]},
+/* OVERVIEW */
+function renderOverview() {
+  const t = D.totals, ar = D.ar;
+  const gm = t.netRev > 0 ? t.gp / t.netRev : 0;
+
+  document.getElementById('ov-kpis').innerHTML =
+    kpi('Net Revenue',       fk(t.netRev, true),   '',                       'blue')   +
+    kpi('Gross Sales',       fk(t.grossSales, true),'Before commission',      'cyan')   +
+    kpi('Gross Profit',      fk(t.gp, true),        fp1(gm) + ' margin',      'green')  +
+    kpi('Commission Paid',   fk(t.commission, true),'To B2B partners',        'amber')  +
+    kpi('Units Sold',        fn(t.units),            'Non-FOC units',          'purple') +
+    kpi('No. of Orders',     fn(t.nOrders),          'Unique order refs',      'blue')   +
+    kpi('B2B Customers',     fn(t.nCustomers),       'Active partners',        'cyan')   +
+    kpi('Active SKUs',       fn(t.nSKUs),            'Products sold',          'green');
+
+  document.getElementById('ov-ar').innerHTML =
+    arCard('out',  'Outstanding',          ar.outstanding, '') +
+    arCard('ov',   'Overdue',              ar.overdue,     ar.nOverdue + ' invoices') +
+    arCard('pend', 'Pending',              ar.pending,     ar.nPending + ' invoices') +
+    arCard('clr',  'Cleared (inv. value)', ar.cleared,     ar.nCleared + ' invoices');
+
+  renderRevChart();
+  renderCatChart();
+  renderSKUChart();
+  renderCustChart();
+}
+
+function kpi(lbl, val, sub, color) {
+  return `<div class="kpi ${color}"><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}</div>`;
+}
+function arCard(cls, lbl, val, cnt) {
+  return `<div class="ar ${cls}"><div class="ar-lbl">${lbl}</div><div class="ar-val">${fk(val, true)}</div><div class="ar-cnt">${cnt}</div></div>`;
+}
+
+/* CHARTS */
+const CC = ['#4f8ef7','#34d399','#fbbf24','#f87171','#a78bfa','#22d3ee','#f97316','#ec4899','#84cc16','#14b8a6'];
+const COPTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fk(ctx.parsed.y ?? ctx.raw, true) } } },
+  scales: {
+    x: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 10 } } },
+    y: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 10 }, callback: v => fk(v, true) } }
+  }
+};
+
+function renderRevChart() {
+  const ms = D.monthly;
+  mkChart('ch-rev', {
+    type: 'bar',
+    data: { labels: ms.map(m => fmo(m.date)), datasets: [{ data: ms.map(m => m.rev), backgroundColor: ms.map((_, i) => CC[i % 3 === 0 ? 0 : 1]), borderRadius: 4, borderSkipped: false }] },
+    options: { ...COPTS, plugins: { ...COPTS.plugins } }
+  });
+}
+
+function renderCatChart() {
+  const top = D.cats.slice(0, 8);
+  mkChart('ch-cat', {
+    type: 'doughnut',
+    data: { labels: top.map(c => c.name), datasets: [{ data: top.map(c => c.gp), backgroundColor: CC, borderColor: '#0a0e1a', borderWidth: 2, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: { legend: { display: true, position: 'right', labels: { color: '#7b8db8', font: { size: 10 }, boxWidth: 10, padding: 6 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fk(ctx.raw, true)} (${fp1(ctx.raw / D.totals.gp)})` } } } }
+  });
+}
+
+function renderSKUChart() {
+  const top = [...D.skuROI].sort((a, b) => b.rev - a.rev).slice(0, 10);
+  mkChart('ch-sku', {
+    type: 'bar',
+    data: { labels: top.map(s => s.name.length > 18 ? s.name.slice(0, 17) + '…' : s.name), datasets: [{ data: top.map(s => s.rev), backgroundColor: '#4f8ef7', borderRadius: 3, borderSkipped: false }] },
+    options: { ...COPTS, indexAxis: 'y', plugins: { ...COPTS.plugins }, scales: { x: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 9 }, callback: v => fk(v, true) } }, y: { grid: { display: false }, ticks: { color: '#7b8db8', font: { size: 9 } } } } }
+  });
+}
+
+function renderCustChart() {
+  const top = D.custRank.slice(0, 10);
+  mkChart('ch-cust', {
+    type: 'bar',
+    data: { labels: top.map(c => c.name.length > 14 ? c.name.slice(0, 13) + '…' : c.name), datasets: [{ data: top.map(c => c.rev), backgroundColor: '#a78bfa', borderRadius: 3, borderSkipped: false }] },
+    options: { ...COPTS, indexAxis: 'y', plugins: { ...COPTS.plugins }, scales: { x: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 9 }, callback: v => fk(v, true) } }, y: { grid: { display: false }, ticks: { color: '#7b8db8', font: { size: 9 } } } } }
+  });
+}
+
+/* INVOICES */
+let invFiltered = [];
+function renderInvoices() {
+  const ar = D.ar;
+  document.getElementById('inv-ar').innerHTML =
+    arCard('out', 'Outstanding', ar.outstanding, '') +
+    arCard('ov',  'Overdue',     ar.overdue,     ar.nOverdue + ' invoices') +
+    arCard('pend','Pending',     ar.pending,     ar.nPending + ' invoices') +
+    arCard('clr', 'Cleared',     ar.cleared,     ar.nCleared + ' invoices');
+  invFiltered = D.invRows.slice();
+  buildInvTable();
+}
+function filterInv() {
+  const q = (document.getElementById('inv-srch').value || '').toLowerCase();
+  const f = document.getElementById('inv-sel').value;
+  invFiltered = D.invRows.filter(r =>
+    (!f || r.status === f) &&
+    (!q || r.contact.toLowerCase().includes(q) || r.ref.toString().toLowerCase().includes(q))
+  );
+  buildInvTable();
+}
+function buildInvTable() {
+  const t = document.getElementById('inv-tbl');
+  t.querySelector('thead').innerHTML = `<tr>${['Date','Ref','Customer','Mode','Invoice Amt','Balance','Status','Due Date','Payment'].map(h => `<th>${h}</th>`).join('')}</tr>`;
+  t.querySelector('tbody').innerHTML = invFiltered.map(r => `<tr>
+    <td>${fdate(r.d)}</td><td class="mono">${r.ref}</td><td>${r.contact}</td><td>${r.mode}</td>
+    <td class="r">${fk(r.invAmt, false)}</td>
+    <td class="r" style="color:${r.balance > 0 ? 'var(--red)' : 'var(--muted)'}">${r.balance > 0 ? fk(r.balance, false) : '—'}</td>
+    <td>${badge(r.status)}</td>
+    <td style="color:${r.due && r.due < new Date() && r.status !== 'Cleared' ? 'var(--red)' : 'inherit'}">${fdate(r.due)}</td>
+    <td style="color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.payment || '—'}</td>
+  </tr>`).join('');
+}
+function exportInvCSV() {
+  const cols = ['Date','Ref','Customer','Mode','Invoice Amount','Balance','Status','Due Date','Payment'];
+  const rows = [cols, ...invFiltered.map(r => [fdate(r.d), r.ref, r.contact, r.mode, r.invAmt, r.balance, r.status, fdate(r.due), r.payment])];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'bleuface-invoices.csv'; a.click();
+}
+
+/* LIVE INVENTORY */
+function renderLiveInv() {
+  const s = D.liveSummary;
+  document.getElementById('li-stats').innerHTML =
+    kpi('Total Usable Stock', fn(s.usableTotal), 'Physical usable units',      'green') +
+    kpi('Total On-Hand',      fn(s.onHandTotal), 'After committed POs',        'blue')  +
+    kpi('Damaged Units',      fn(s.damageTotal), 'Needs write-off review',     'red')   +
+    kpi('Return Units',       fn(s.returnTotal), 'Units received back',        'amber');
+
+  const zeros = D.liveRows.filter(r => r.usable === 0);
+  const dmgs  = D.liveRows.filter(r => r.damage > 0);
+  let alerts = '';
+  if (zeros.length) alerts += `<div class="alert alert-r"><h4>&#128308; Zero Usable Stock — ${zeros.length} SKUs need restocking</h4><div class="chips">${zeros.map(r => `<span class="chip chip-r">${r.prod}</span>`).join('')}</div></div>`;
+  if (dmgs.length)  alerts += `<div class="alert alert-a" style="margin-top:8px"><h4>&#9888;&#65039; Damaged Stock — ${dmgs.length} SKUs</h4><div class="chips">${dmgs.map(r => `<span class="chip chip-a">${r.prod}: ${r.damage} unit${r.damage !== 1 ? 's' : ''}${r.dNote ? ' — ' + r.dNote : ''}</span>`).join('')}</div></div>`;
+  document.getElementById('li-alerts').innerHTML = alerts;
+
+  const t = document.getElementById('li-tbl');
+  t.querySelector('thead').innerHTML = `<tr>${['SKU','Usable','On-Hand','Damage','Damage Notes','Returns','Return Notes'].map(h => `<th>${h}</th>`).join('')}</tr>`;
+  t.querySelector('tbody').innerHTML = D.liveRows.map(r => `<tr>
+    <td>${r.prod}</td>
+    <td class="r">${fn(r.usable)}</td>
+    <td class="r">${fn(r.onHand)}</td>
+    <td class="r" style="color:${r.damage > 0 ? 'var(--red)' : 'inherit'}">${r.damage || '—'}</td>
+    <td style="color:var(--muted);font-size:11px">${r.dNote || '—'}</td>
+    <td class="r" style="color:${r.ret > 0 ? 'var(--amber)' : 'inherit'}">${r.ret || '—'}</td>
+    <td style="color:var(--muted);font-size:11px">${r.rNote || '—'}</td>
+  </tr>`).join('');
+}
+
+/* SALES INVENTORY */
+function renderSalesInv() {
+  const s = D.invSummary;
+  document.getElementById('si-stats').innerHTML =
+    kpi('Total Stock Value', fk(s.stockVal, true),       'At unit cost',        'blue')  +
+    kpi('Avg Days of Stock', Math.round(s.avgDOS) + 'd', 'Across active SKUs',  'green') +
+    kpi('Low Stock',         fn(s.lowStock.length),       '<30 days remaining',  'amber') +
+    kpi('Sold Out SKUs',     fn(s.soldOut.length),        '0 qty in hand',       'red');
+
+  let alerts = '';
+  if (s.soldOut.length) alerts += `<div class="alert alert-r"><h4>&#128308; Sold Out — Restock Needed (${s.soldOut.length} SKUs)</h4><div class="chips">${s.soldOut.map(r => `<span class="chip chip-r">${r.prod}</span>`).join('')}</div></div>`;
+  if (s.lowStock.length) alerts += `<div class="alert alert-a" style="margin-top:8px"><h4>&#9888;&#65039; Low Stock — Under 30 Days (${s.lowStock.length} SKUs)</h4><div class="chips">${s.lowStock.map(r => `<span class="chip chip-a">${r.prod} — ${Math.round(r.dos)}d</span>`).join('')}</div></div>`;
+  document.getElementById('si-alerts').innerHTML = alerts;
+
+  const t = document.getElementById('si-tbl');
+  t.querySelector('thead').innerHTML = `<tr>${['SKU','Qty In Hand','Unit Cost','Stock Value','Qty Sold','Daily Rate','Days of Stock','Status'].map(h => `<th>${h}</th>`).join('')}</tr>`;
+  t.querySelector('tbody').innerHTML = D.trackerRows.map(r => {
+    let s, sc;
+    if (r.qtyHand === 0 && r.qtySold > 0) { s = 'Sold Out'; sc = 'b-r'; }
+    else if (r.qtyHand === 0 && r.qtySold === 0) { s = 'No Sales'; sc = 'b-m'; }
+    else if (r.dos < 30) { s = 'Low Stock'; sc = 'b-a'; }
+    else if (r.dos > 300) { s = 'Overstocked'; sc = 'b-b'; }
+    else { s = 'Healthy'; sc = 'b-g'; }
+    const dosStr = r.dos >= 9999 || r.dos === 0 ? '—' : Math.round(r.dos) + 'd';
+    const dosColor = r.dos < 30 && r.qtyHand > 0 ? 'color:var(--amber)' : r.dos > 300 ? 'color:var(--muted)' : '';
+    return `<tr>
+      <td>${r.prod}</td>
+      <td class="r">${fn(r.qtyHand)}</td>
+      <td class="r">${fk(r.unitCost, false)}</td>
+      <td class="r">${fk(r.sv, true)}</td>
+      <td class="r">${fn(r.qtySold)}</td>
+      <td class="r" style="color:var(--muted)">${r.dailyRate > 0 ? r.dailyRate.toFixed(1) : '—'}</td>
+      <td class="r" style="${dosColor}">${dosStr}</td>
+      <td><span class="badge ${sc}">${s}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* STRATEGY */
+function renderStrategy() {
+  renderGrowthChart();
+  renderCat2Chart();
+  renderMonthlyPL();
+  renderCustRank();
+  renderSKURoi();
+}
+function renderGrowthChart() {
+  const ms = D.monthly;
+  mkChart('ch-growth', {
+    type: 'bar',
+    data: {
+      labels: ms.map(m => fmo(m.date)),
+      datasets: [
+        { label: 'Net Revenue', data: ms.map(m => m.rev), backgroundColor: 'rgba(79,142,247,.6)', borderRadius: 3, order: 2 },
+        { label: 'Gross Profit', data: ms.map(m => m.gp), type: 'line', borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.08)', pointBackgroundColor: '#34d399', tension: 0.3, fill: true, order: 1, pointRadius: 4 }
       ]
     },
-    options:lineOpts(),
-  });
-
-  // Category doughnut
-  destroyChart('chart-cat-rev');
-  charts['chart-cat-rev']=new Chart($('chart-cat-rev'),{
-    type:'doughnut',
-    data:{labels:M.categories.map(c=>c.category),datasets:[{data:M.categories.map(c=>c.net),backgroundColor:PAL,borderColor:'var(--surface)',borderWidth:2,hoverOffset:6}]},
-    options:doughnutOpts(),
-  });
-
-  // Top 10 SKU
-  const t10s=M.skus.slice(0,10);
-  destroyChart('chart-sku-rev');
-  charts['chart-sku-rev']=new Chart($('chart-sku-rev'),{
-    type:'bar',
-    data:{labels:t10s.map(s=>s.product),datasets:[{label:'Net Revenue',data:t10s.map(s=>s.net),backgroundColor:PAL[0]+'BB',borderColor:PAL[0],borderWidth:1,borderRadius:4}]},
-    options:{...hbarOpts(),indexAxis:'y'},
-  });
-
-  // Top 10 Customers
-  const t10c=M.customers.slice(0,10);
-  destroyChart('chart-cust-rev');
-  charts['chart-cust-rev']=new Chart($('chart-cust-rev'),{
-    type:'bar',
-    data:{labels:t10c.map(c=>c.customer),datasets:[{label:'Net Revenue',data:t10c.map(c=>c.net),backgroundColor:PAL[1]+'BB',borderColor:PAL[1],borderWidth:1,borderRadius:4}]},
-    options:{...hbarOpts(),indexAxis:'y'},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, labels: { color: '#7b8db8', font: { size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fk(ctx.parsed.y, true)}` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: '#7b8db8', font: { size: 10 } } }, y: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 10 }, callback: v => fk(v, true) } } }
+    }
   });
 }
-
-/* ══ INVOICES ═══════════════════════════════════════════════ */
-let invFilterActive='all';
-let invSortKey='date', invSortAsc=false;
-let _invRows=[];
-
-function renderInvoices(M) {
-  _invRows=INVOICES;
-  renderInvTable();
-
-  // FOC table
-  const focItems=M.focItems.slice(0,100);
-  document.querySelector('#tbl-foc tbody').innerHTML=focItems.map(r=>`<tr>
-    <td>${fmt.date(r.orderDate)}</td>
-    <td><b style="color:var(--cyan)">${r.orderRef}</b></td>
-    <td>${r.customer}</td>
-    <td>${r.product}</td>
-    <td><span class="pill p-dim">${r.category}</span></td>
-    <td class="num">${fmt.int(r.quantity)}</td>
-    <td class="num">Rs.${fmt.money(r.productPrice)}</td>
-    <td class="num" style="color:var(--red)">Rs.${fmt.money(r.lineCost)}</td>
-  </tr>`).join('');
-  $('foc-pill').innerHTML=`<span class="pill p-pink">${M.focItems.length} items · Rs.${fmt.money(M.focCost)} cost</span>`;
-}
-
-function renderInvTable() {
-  let rows=[..._invRows];
-  const q=$('inv-search').value.toLowerCase();
-  if(q) rows=rows.filter(r=>String(r.ref).toLowerCase().includes(q)||(r.customer||'').toLowerCase().includes(q));
-  if(invFilterActive==='overdue') rows=rows.filter(r=>r.finalStatus.toLowerCase()==='overdue');
-  else if(invFilterActive==='pending') rows=rows.filter(r=>!r.finalStatus.toLowerCase().includes('cleared')&&!r.finalStatus.toLowerCase().includes('overdue'));
-  else if(invFilterActive==='partial') rows=rows.filter(r=>r.status.toLowerCase().includes('partially'));
-  else if(invFilterActive==='cleared') rows=rows.filter(r=>r.finalStatus.toLowerCase().includes('cleared'));
-  else if(invFilterActive==='foc') rows=rows.filter(r=>r.isFOC||r.finalStatus.toLowerCase().includes('foc'));
-
-  rows=rows.slice().sort((a,b)=>{
-    let av=a[invSortKey],bv=b[invSortKey];
-    if(av==null)return 1; if(bv==null)return -1;
-    if(av instanceof Date&&bv instanceof Date) return invSortAsc?av-bv:bv-av;
-    return typeof av==='number'?(invSortAsc?av-bv:bv-av):(invSortAsc?String(av).localeCompare(String(bv)):String(bv).localeCompare(String(av)));
+function renderCat2Chart() {
+  const top = D.cats.slice(0, 8);
+  mkChart('ch-cat2', {
+    type: 'doughnut',
+    data: { labels: top.map(c => c.name), datasets: [{ data: top.map(c => c.gp), backgroundColor: CC, borderColor: '#0a0e1a', borderWidth: 2, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '55%',
+      plugins: { legend: { display: true, position: 'right', labels: { color: '#7b8db8', font: { size: 10 }, boxWidth: 10, padding: 6 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fk(ctx.raw, true)}` } } } }
   });
-
-  const tbody=document.querySelector('#tbl-inv tbody');
-  tbody.innerHTML=rows.map(inv=>{
-    const fs=(inv.finalStatus||'').toLowerCase();
-    const pillCls=fs.includes('cleared')?'p-green':fs.includes('overdue')?'p-red':inv.status.toLowerCase().includes('partial')?'p-orange':'p-cyan';
-    const statusPill=`<span class="pill ${pillCls}">${inv.finalStatus||inv.status||'—'}</span>`;
-    const bal=inv.balance>0?`<span style="color:var(--red);font-family:var(--mono)">Rs.${fmt.money(inv.balance)}</span>`:'<span style="color:var(--green)">Nil</span>';
+}
+function renderMonthlyPL() {
+  const t = document.getElementById('st-pl');
+  t.querySelector('thead').innerHTML = `<tr>${['Month','','Net Revenue','COGS','Gross Profit','GP %','Expenses','Net Profit'].map(h => `<th>${h}</th>`).join('')}</tr>`;
+  const rows = D.monthly.map((m, i) => {
+    const exp = D.mExp[m.key] || 0;
+    const np  = m.gp - exp;
+    const prev = i > 0 ? D.monthly[i - 1].rev : null;
+    const pct  = prev && prev > 0 ? (m.rev - prev) / prev : null;
+    const arrow = pct === null ? '' : pct >= 0 ? `<span class="up">&#9650;${(pct*100).toFixed(0)}%</span>` : `<span class="dn">&#9660;${(Math.abs(pct)*100).toFixed(0)}%</span>`;
     return `<tr>
-      <td><b style="color:var(--cyan)">${inv.ref}</b>${inv.isFOC?'<span class="pill p-pink" style="margin-left:6px;font-size:9px">FOC</span>':''}</td>
-      <td>${inv.customer}</td>
-      <td>${fmt.date(inv.date)}</td>
-      <td>${fmt.date(inv.dueDate)}</td>
-      <td class="num"><b>Rs.${fmt.money(inv.amount)}</b></td>
-      <td class="num">${bal}</td>
-      <td><span class="pill p-dim" style="font-size:9px">${inv.status||'—'}</span></td>
-      <td>${statusPill}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:180px;white-space:normal">${inv.payment||'—'}</td>
+      <td><b>${fmo(m.date)}</b></td><td>${arrow}</td>
+      <td class="r">${fk(m.rev, true)}</td>
+      <td class="r" style="color:var(--muted)">${fk(m.cogs, true)}</td>
+      <td class="r">${fk(m.gp, true)}</td>
+      <td class="r" style="color:var(--muted)">${fp1(m.rev > 0 ? m.gp / m.rev : 0)}</td>
+      <td class="r" style="color:var(--muted)">${fk(exp, true)}</td>
+      <td class="r" style="color:${np >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${fk(np, true)}</td>
     </tr>`;
+  });
+  const tg = D.totals, tExp = D.expTotal + D.drawTotal, tNP = tg.gp - tExp;
+  rows.push(`<tr style="background:var(--s2);font-weight:700">
+    <td>TOTAL</td><td></td>
+    <td class="r">${fk(tg.netRev, true)}</td>
+    <td class="r" style="color:var(--muted)">${fk(tg.cogs, true)}</td>
+    <td class="r">${fk(tg.gp, true)}</td>
+    <td class="r" style="color:var(--muted)">${fp1(tg.netRev > 0 ? tg.gp / tg.netRev : 0)}</td>
+    <td class="r" style="color:var(--muted)">${fk(tExp, true)}</td>
+    <td class="r" style="color:${tNP >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:800">${fk(tNP, true)}</td>
+  </tr>`);
+  t.querySelector('tbody').innerHTML = rows.join('');
+}
+function renderCustRank() {
+  const t = document.getElementById('st-cust');
+  t.querySelector('thead').innerHTML = `<tr><th></th><th>Customer</th><th class="r">Net Rev</th><th class="r">GP</th><th class="r">GP%</th><th class="r">Units</th><th class="r">Ord</th></tr>`;
+  t.querySelector('tbody').innerHTML = D.custRank.map((c, i) =>
+    `<tr><td>${rankBadge(i)}</td><td>${c.name}</td>
+    <td class="r">${fk(c.rev, true)}</td>
+    <td class="r">${fk(c.gp, true)}</td>
+    <td class="r">${fp1(c.rev > 0 ? c.gp / c.rev : 0)}</td>
+    <td class="r">${fn(c.units)}</td>
+    <td class="r">${c.orders}</td></tr>`
+  ).join('');
+}
+function renderSKURoi() {
+  const t = document.getElementById('st-roi');
+  t.querySelector('thead').innerHTML = `<tr><th></th><th>SKU</th><th class="r">Net Rev</th><th class="r">GP</th><th class="r">ROI</th></tr>`;
+  t.querySelector('tbody').innerHTML = D.skuROI.map((s, i) => {
+    const roiColor = s.roi >= 3 ? 'var(--green)' : s.roi >= 1 ? 'var(--amber)' : 'var(--red)';
+    return `<tr><td>${rankBadge(i)}</td>
+    <td title="${s.name}">${s.name.length > 24 ? s.name.slice(0, 23) + '…' : s.name}</td>
+    <td class="r">${fk(s.rev, true)}</td>
+    <td class="r">${fk(s.gp, true)}</td>
+    <td class="r" style="color:${roiColor};font-weight:700">${(s.roi * 100).toFixed(0)}%</td></tr>`;
   }).join('');
 }
 
-$('inv-search').addEventListener('input',renderInvTable);
-document.querySelectorAll('#inv-filter-btns .fbtn').forEach(b=>{
-  b.addEventListener('click',()=>{
-    document.querySelectorAll('#inv-filter-btns .fbtn').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    invFilterActive=b.dataset.f;
-    renderInvTable();
-  });
-});
-document.querySelectorAll('#tbl-inv thead th').forEach(th=>{
-  th.addEventListener('click',()=>{
-    const k=th.dataset.sort; if(!k)return;
-    if(invSortKey===k)invSortAsc=!invSortAsc; else{invSortKey=k;invSortAsc=true;}
-    renderInvTable();
-  });
-});
-$('inv-export').addEventListener('click',()=>{
-  const rows=_invRows.map(i=>[i.ref,i.customer,fmt.date(i.date),fmt.date(i.dueDate),Math.round(i.amount),Math.round(i.balance),i.status,i.finalStatus,i.payment]);
-  const csv=[['Invoice','Customer','Date','Due','Amount','Balance','Status','Final Status','Payment'],...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
-  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'bleuface_invoices.csv'});
-  a.click();
-});
+/* FINANCE */
+function renderFinance() {
+  const t = D.totals, exp = D.expTotal, drw = D.drawTotal;
+  const gp  = t.gp, gm = t.netRev > 0 ? gp / t.netRev : 0;
+  const np  = gp - exp - drw;
+  const npm = t.netRev > 0 ? np / t.netRev : 0;
+  const fc  = exp + drw;
+  const beR = gm > 0 ? fc / gm : 0;
+  const avgSP = t.units > 0 ? t.netRev / t.units : 0;
+  const avgVC = t.units > 0 ? t.cogs   / t.units : 0;
+  const cm    = avgSP - avgVC;
+  const beU   = cm > 0 ? fc / cm : 0;
 
-/* ══ LIVE INVENTORY ═════════════════════════════════════════ */
-let liFilterActive='all';
-let liSearchQ='';
+  document.getElementById('fin-pl').innerHTML = `
+    <h3>Profit &amp; Loss Summary</h3>
+    <div class="pl-row"><span>Gross Sales</span><span class="pv">${fk(t.grossSales, false)}</span></div>
+    <div class="pl-row pl-ind"><span>Less: Commission Paid</span><span class="pv" style="color:var(--red)">(${fk(t.commission, false)})</span></div>
+    <div class="pl-row sub"><span>Net Revenue</span><span class="pv">${fk(t.netRev, false)}</span></div>
+    <div class="pl-row pl-ind"><span>Less: COGS</span><span class="pv" style="color:var(--red)">(${fk(t.cogs, false)})</span></div>
+    <div class="pl-row sub"><span>Gross Profit</span><span class="pv">${fk(gp, false)}</span></div>
+    <div class="pl-row pl-ind" style="color:var(--faint)"><span>Gross Margin</span><span>${fp(gm)}</span></div>
+    <div class="pl-row pl-ind"><span>Less: Operating Expenses</span><span class="pv" style="color:var(--red)">(${fk(exp, false)})</span></div>
+    <div class="pl-row pl-ind"><span>Less: Drawings</span><span class="pv" style="color:var(--red)">(${fk(drw, false)})</span></div>
+    <div class="pl-row tot ${np >= 0 ? 'pos' : 'neg'}"><span>Net Profit / Loss</span><span class="pv">${fk(np, false)}</span></div>
+    <div class="pl-row" style="color:var(--faint);font-size:11px;margin-top:4px"><span>OPEX as % of Revenue</span><span>${fp(t.netRev > 0 ? exp / t.netRev : 0)}</span></div>
+    <div class="pl-row" style="color:${npm >= 0 ? 'var(--green)' : 'var(--red)'};font-size:11px"><span>Net Profit Margin</span><span>${fp(npm)}</span></div>`;
 
-function renderLiveInventory() {
-  const rows=LIVE_INV;
-  $('li-total').textContent=fmt.int(rows.reduce((s,r)=>s+r.usable,0));
-  $('li-damage').textContent=fmt.int(rows.reduce((s,r)=>s+r.damage,0));
-  $('li-returns').textContent=fmt.int(rows.reduce((s,r)=>s+r.returns,0));
-  $('li-onhand').textContent=fmt.int(rows.reduce((s,r)=>s+r.totalOnHand,0));
-  renderLiveTable();
-
-  // Zero stock list
-  const zeros=rows.filter(r=>r.totalUseable<=0);
-  const zeroEl=$('li-zero-list');
-  if(zeros.length===0){
-    zeroEl.innerHTML='<div class="alert alert-green">✓ No zero-stock items</div>';
-  } else {
-    zeroEl.innerHTML=zeros.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
-      <div><div style="font-weight:600;font-size:12px">${r.product}</div>
-      <div class="card-sub">Purchased ${fmt.int(r.purchasedQty)} · On Hand ${fmt.int(r.totalOnHand)}</div></div>
-      <span class="pill p-red">Zero</span></div>`).join('');
-  }
-
-  // Damage list
-  const damaged=rows.filter(r=>r.damage>0);
-  const damEl=$('li-damage-list');
-  if(damaged.length===0){
-    damEl.innerHTML='<div class="alert alert-green">✓ No damaged items logged</div>';
-  } else {
-    damEl.innerHTML=damaged.map(r=>`<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:12px">
-      <div><div style="font-weight:600;font-size:12px">${r.product}</div>
-      ${r.damageNotes?`<div class="card-sub" style="color:var(--orange)">${r.damageNotes}</div>`:''}
-      </div><span class="pill p-orange">${fmt.int(r.damage)} dmg</span></div>`).join('');
-  }
-}
-
-function renderLiveTable() {
-  let rows=[...LIVE_INV];
-  if(liSearchQ) rows=rows.filter(r=>r.product.toLowerCase().includes(liSearchQ));
-  if(liFilterActive==='damage') rows=rows.filter(r=>r.damage>0);
-  else if(liFilterActive==='zero') rows=rows.filter(r=>r.totalUseable<=0);
-  else if(liFilterActive==='po') rows=rows.filter(r=>r.pendingPO>0);
-
-  const tbody=document.querySelector('#tbl-live tbody');
-  tbody.innerHTML=rows.map(r=>{
-    const alert=r.totalUseable<=0?'<span class="pill p-red">Zero</span>':r.damage>0?'<span class="pill p-orange">Damage</span>':'<span class="pill p-green">OK</span>';
-    return `<tr>
-      <td><b>${r.product}</b></td>
-      <td class="num">${fmt.int(r.purchasedQty)}</td>
-      <td class="num">${fmt.int(r.currentCount)}</td>
-      <td class="num" style="color:${r.damage>0?'var(--red)':'var(--muted)'}">${r.damage>0?fmt.int(r.damage):'—'}</td>
-      <td style="font-size:11px;color:var(--orange);max-width:160px;white-space:normal">${r.damageNotes||'—'}</td>
-      <td class="num" style="color:${r.returns>0?'var(--green)':'var(--muted)'}">${r.returns>0?fmt.int(r.returns):'—'}</td>
-      <td class="num" style="color:${r.usable>50?'var(--green)':r.usable>10?'var(--orange)':'var(--red)'}">${fmt.int(r.usable)}</td>
-      <td class="num" style="color:${r.pendingPO>0?'var(--cyan)':'var(--muted)'}">${r.pendingPO>0?fmt.int(r.pendingPO):'—'}</td>
-      <td class="num">${fmt.int(r.totalOnHand)}</td>
-      <td class="num" style="font-weight:700">${fmt.int(r.totalUseable)}</td>
-      <td>${alert}</td>
-    </tr>`;
-  }).join('');
-}
-
-$('li-search').addEventListener('input',e=>{liSearchQ=e.target.value.toLowerCase();renderLiveTable();});
-document.querySelectorAll('#li-filter-btns .fbtn').forEach(b=>{
-  b.addEventListener('click',()=>{
-    document.querySelectorAll('#li-filter-btns .fbtn').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    liFilterActive=b.dataset.lf;
-    renderLiveTable();
-  });
-});
-
-/* ══ SALES INVENTORY ════════════════════════════════════════ */
-function renderInventory(M) {
-  $('inv-val').textContent=fmt.compact(M.totalStockValue);
-  $('inv-low').textContent=fmt.int(M.lowStockSKUs.length);
-  $('inv-dead').textContent=fmt.int(M.deadStockSKUs.length);
-  $('inv-days').textContent=isFinite(M.avgDaysStock)?Math.round(M.avgDaysStock)+'d':'—';
-
-  const rows=M.inventoryRows.sort((a,b)=>(a.daysOfStock??9999)-(b.daysOfStock??9999));
-  const tbody=document.querySelector('#tbl-stock tbody');
-  tbody.innerHTML=rows.map(r=>{
-    const pct=r.stockPct!=null?fmt.pct0(r.stockPct):'—';
-    const pctColor=r.stockPct!=null?(r.stockPct<.2?'var(--red)':r.stockPct<.5?'var(--orange)':'var(--green)'):'var(--muted)';
-    const rowCls=r.isLowStock&&r.sales30d>0?'stock-crit':r.isDead?'stock-dead':r.isLowStock?'stock-warn':'';
-    const alert=r.isDead?'<span class="pill p-red">Dead</span>':r.isLowStock?'<span class="pill p-orange">Low</span>':'<span class="pill p-green">OK</span>';
-    return `<tr class="${rowCls}">
-      <td><b>${r.product}</b></td>
-      <td><span class="pill p-dim" style="font-size:9px">${r.category}</span></td>
-      <td class="num">${r.purchasedQty!=null?fmt.int(r.purchasedQty):'—'}</td>
-      <td class="num">${fmt.int(r.units)}</td>
-      <td class="num">${r.remaining!=null?fmt.int(r.remaining):'—'}</td>
-      <td class="num" style="color:${pctColor}">${pct}</td>
-      <td class="num">${fmt.int(r.sales30d)}</td>
-      <td class="num" style="color:${r.daysOfStock!=null&&r.daysOfStock<30?'var(--red)':r.daysOfStock!=null&&r.daysOfStock<60?'var(--orange)':'var(--green)'}">${r.daysOfStock!=null&&isFinite(r.daysOfStock)?Math.round(r.daysOfStock)+'d':'∞'}</td>
-      <td class="num">Rs.${fmt.money(r.stockValue)}</td>
-      <td>${alert}</td>
-    </tr>`;
-  }).join('');
-
-  // Low stock alerts
-  const lowEl=$('inv-lowlist');
-  if(M.lowStockSKUs.length===0){
-    lowEl.innerHTML='<div class="alert alert-green">✓ No low stock items</div>';
-  } else {
-    lowEl.innerHTML=M.lowStockSKUs.sort((a,b)=>(a.stockPct??1)-(b.stockPct??1)).map(r=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
-        <div>
-          <div style="font-weight:600;font-size:12px">${r.product}</div>
-          <div class="card-sub">${fmt.int(r.remaining)} left · ${fmt.int(r.sales30d)} sold/30d</div>
-        </div>
-        <div style="text-align:right">
-          <span class="pill p-orange">${fmt.pct0(r.stockPct)} remaining</span>
-          <div class="prog-bar" style="width:80px;margin-top:4px"><div class="prog-fill" style="width:${((r.stockPct||0)*100).toFixed(0)}%;background:var(--orange)"></div></div>
-        </div>
-      </div>`).join('');
-  }
-
-  // Dead stock
-  const deadEl=$('inv-deadlist');
-  if(M.deadStockSKUs.length===0){
-    deadEl.innerHTML='<div class="alert alert-green">✓ No dead stock</div>';
-  } else {
-    deadEl.innerHTML=M.deadStockSKUs.map(r=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
-        <div>
-          <div style="font-weight:600;font-size:12px">${r.product}</div>
-          <div class="card-sub">${r.category} · ${fmt.int(r.remaining)} units</div>
-        </div>
-        <span class="pill p-red">Rs.${fmt.money(r.stockValue)} tied up</span>
-      </div>`).join('');
-  }
-
-  // Inventory Tracker table
-  const tkbody=document.querySelector('#tbl-tracker tbody');
-  tkbody.innerHTML=INV_TRACKER.map(r=>`<tr>
-    <td><b>${r.product}</b></td>
-    <td class="num">Rs.${fmt.money(r.unitCost)}</td>
-    <td class="num" style="color:${r.qtyInHand>0?'var(--green)':'var(--red)'}">${fmt.int(r.qtyInHand)}</td>
-    <td class="num">Rs.${fmt.money(r.costInHand)}</td>
-    <td class="num">${fmt.int(r.qtySold)}</td>
-    <td class="num" style="color:var(--muted)">Rs.${fmt.money(r.costSold)}</td>
-  </tr>`).join('');
-
-  // Stock valuation chart
-  const catValMap={};
-  M.inventoryRows.forEach(r=>{catValMap[r.category]=(catValMap[r.category]||0)+r.stockValue;});
-  const catVals=Object.entries(catValMap).sort((a,b)=>b[1]-a[1]);
-  destroyChart('chart-stock-val');
-  charts['chart-stock-val']=new Chart($('chart-stock-val'),{
-    type:'bar',
-    data:{labels:catVals.map(c=>c[0]),datasets:[{label:'Stock Value (PKR)',data:catVals.map(c=>c[1]),backgroundColor:PAL,borderRadius:4}]},
-    options:{...hbarOpts(),indexAxis:'y'},
-  });
-}
-
-/* ══ STRATEGY ═══════════════════════════════════════════════ */
-function renderStrategy(M) {
-  // Growth
-  const growth=M.momGrowth.filter(m=>m.pct!=null);
-  destroyChart('chart-growth');
-  charts['chart-growth']=new Chart($('chart-growth'),{
-    type:'bar',
-    data:{
-      labels:growth.map(m=>m.month),
-      datasets:[{label:'MoM Growth %',data:growth.map(m=>+(m.pct*100).toFixed(1)),backgroundColor:growth.map(m=>m.pct>=0?'rgba(0,216,152,.7)':'rgba(255,77,92,.7)'),borderRadius:4}]
-    },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.toFixed(1)}%`}}},scales:{x:{grid:{color:GRID}},y:{grid:{color:GRID},ticks:{callback:v=>v+'%'}}}},
-  });
-
-  // Monthly P&L
-  destroyChart('chart-pnl');
-  charts['chart-pnl']=new Chart($('chart-pnl'),{
-    type:'bar',
-    data:{
-      labels:M.months.map(m=>m.month),
-      datasets:[
-        {label:'Net Revenue',data:M.months.map(m=>m.net),backgroundColor:'rgba(0,192,255,.5)',borderRadius:3},
-        {label:'COGS',data:M.months.map(m=>m.cost),backgroundColor:'rgba(255,77,92,.5)',borderRadius:3},
-        {label:'Gross Profit',data:M.months.map(m=>m.profit),backgroundColor:'rgba(0,216,152,.6)',borderRadius:3},
-      ]
-    },
-    options:groupBarOpts(),
-  });
-
-  // Category profit
-  const catPft=M.categories.sort((a,b)=>b.profit-a.profit);
-  destroyChart('chart-cat-profit');
-  charts['chart-cat-profit']=new Chart($('chart-cat-profit'),{
-    type:'bar',
-    data:{labels:catPft.map(c=>c.category),datasets:[{label:'Gross Profit',data:catPft.map(c=>c.profit),backgroundColor:PAL.map(p=>p+'99'),borderColor:PAL,borderWidth:1,borderRadius:4}]},
-    options:{...hbarOpts(),indexAxis:'y'},
-  });
-
-  // Category table
-  document.querySelector('#tbl-cat tbody').innerHTML=catPft.map(c=>`<tr>
-    <td><b>${c.category}</b></td>
-    <td class="num">Rs.${fmt.money(c.net)}</td>
-    <td class="num" style="color:var(--red)">Rs.${fmt.money(c.cost)}</td>
-    <td class="num" style="color:var(--green)">Rs.${fmt.money(c.profit)}</td>
-    <td class="num"><span style="color:${c.margin>.4?'var(--green)':c.margin>.2?'var(--orange)':'var(--red)'}">${fmt.pct1(c.margin)}</span></td>
-    <td class="num">${fmt.int(c.units)}</td>
-  </tr>`).join('');
-
-  // Whale tracker
-  const top5=M.customers.slice(0,5);
-  destroyChart('chart-whale');
-  charts['chart-whale']=new Chart($('chart-whale'),{
-    type:'bar',
-    data:{labels:top5.map(c=>c.customer),datasets:[
-      {label:'Net Revenue',data:top5.map(c=>c.net),backgroundColor:'rgba(232,185,76,.6)',borderColor:'rgba(232,185,76,1)',borderWidth:1,borderRadius:4},
-      {label:'Gross Profit',data:top5.map(c=>c.profit),backgroundColor:'rgba(0,216,152,.5)',borderColor:'rgba(0,216,152,1)',borderWidth:1,borderRadius:4},
-    ]},
-    options:{...groupBarOpts(),indexAxis:'y'},
-  });
-
-  // Partner table
-  document.querySelector('#tbl-cust tbody').innerHTML=M.customers.map(c=>{
-    const stCls=c.status==='Active'?'p-green':c.status==='At-Risk'?'p-orange':'p-red';
-    return `<tr>
-      <td style="color:var(--muted);font-family:var(--mono)">${c.rank}</td>
-      <td><b>${c.customer}</b></td>
-      <td class="num"><b>Rs.${fmt.money(c.net)}</b></td>
-      <td class="num" style="color:var(--green)">Rs.${fmt.money(c.profit)}</td>
-      <td class="num">${fmt.pct1(c.margin)}</td>
-      <td class="num">${c.orders}</td>
-      <td>${fmt.date(c.lastDate)}</td>
-      <td><span class="pill ${stCls}">${c.status}</span></td>
-    </tr>`;
-  }).join('');
-
-  // ROI per SKU
-  const roiSkus=M.skus.filter(s=>s.cost>0).sort((a,b)=>b.roi-a.roi).slice(0,20);
-  destroyChart('chart-roi');
-  charts['chart-roi']=new Chart($('chart-roi'),{
-    type:'bar',
-    data:{labels:roiSkus.map(s=>s.product),datasets:[{label:'ROI %',data:roiSkus.map(s=>+(s.roi*100).toFixed(1)),backgroundColor:roiSkus.map((_,i)=>PAL[i%PAL.length]+'AA'),borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.toFixed(1)}%`}}},scales:{x:{grid:{color:GRID},ticks:{callback:v=>v+'%'}},y:{grid:{color:GRID},ticks:{font:{size:10}}}}},
-  });
-
-  renderSkuTable(M.skus);
-}
-
-let skuQ='';
-let _skus=[];
-function renderSkuTable(skus){
-  _skus=skus;
-  const filtered=skuQ?skus.filter(s=>s.product.toLowerCase().includes(skuQ)||s.category.toLowerCase().includes(skuQ)):skus;
-  document.querySelector('#tbl-sku tbody').innerHTML=filtered.map(s=>`<tr>
-    <td><b>${s.product}</b></td>
-    <td><span class="pill p-dim" style="font-size:9px">${s.category}</span></td>
-    <td class="num">${fmt.int(s.units)}</td>
-    <td class="num">Rs.${fmt.money(s.net)}</td>
-    <td class="num" style="color:var(--green)">Rs.${fmt.money(s.profit)}</td>
-    <td class="num"><span style="color:${s.margin>.4?'var(--green)':s.margin>.2?'var(--orange)':'var(--red)'}">${fmt.pct1(s.margin)}</span></td>
-    <td class="num" style="color:var(--cyan);font-weight:700">${fmt.pct0(s.roi)}</td>
-  </tr>`).join('');
-}
-$('sku-search').addEventListener('input',e=>{skuQ=e.target.value.toLowerCase();renderSkuTable(_skus);});
-
-/* ══ FINANCE ════════════════════════════════════════════════ */
-function renderFinance(M) {
-  $('fin-net').textContent=fmt.compact(M.totalNet);
-  $('fin-cogs').textContent=fmt.compact(M.totalCost);
-  $('fin-cogs-sub').textContent=`${fmt.pct1(M.totalCost/M.totalNet)} of net revenue`;
-  $('fin-gp').textContent=fmt.compact(M.grossProfit);
-  $('fin-gp-sub').textContent=`Margin ${fmt.pct1(M.grossMarginPct)}`;
-  $('fin-opex').textContent=fmt.compact(M.totalOpex);
-  $('fin-opex-sub').textContent=`${EXPENSES.length} expense line items`;
-  $('fin-draw').textContent=fmt.compact(M.totalDraw);
-  const npEl=$('fin-np');
-  npEl.textContent=fmt.compact(M.netProfit);
-  npEl.style.color=M.netProfit>=0?'var(--gold)':'var(--red)';
-  $('fin-np-sub').textContent=M.netProfit>=0?`+${fmt.pct1(M.netMargin)} net margin`:`Net loss: ${fmt.pct1(Math.abs(M.netMargin))}`;
-  $('fin-exp-ratio').textContent=fmt.pct1(M.expRatio);
-  $('fin-npm').textContent=fmt.pct1(M.netMargin);
-
-  // Breakeven
-  if(M.breakEvenRev){
-    $('be-rev').textContent=fmt.compact(M.breakEvenRev);
-    $('be-units').textContent=fmt.int(M.breakEvenUnits)+'u';
-    const prog=Math.min(100,(M.totalNet/M.breakEvenRev)*100);
-    const bf=$('be-prog');
-    bf.style.width=prog.toFixed(0)+'%';
-    bf.style.background=prog>=100?'var(--green)':prog>=70?'var(--orange)':'var(--red)';
-    $('be-pct').textContent=prog.toFixed(0)+'% of breakeven';
-    $('be-pct').style.color=prog>=100?'var(--green)':prog>=70?'var(--orange)':'var(--red)';
-    $('be-curr-lbl').textContent=`Current: ${fmt.compact(M.totalNet)}`;
-    $('be-max-lbl').textContent=fmt.compact(M.breakEvenRev*1.2);
-    const surplus=M.totalNet-M.breakEvenRev;
-    $('be-msg').textContent=surplus>=0?`Rs.${fmt.money(surplus)} above breakeven`:`Rs.${fmt.money(Math.abs(surplus))} short`;
-    $('be-safety').textContent=surplus>=0
-      ?`✅ Safety margin: ${(surplus/M.totalNet*100).toFixed(1)}% — revenue could fall by Rs.${fmt.money(surplus)} before hitting breakeven.`
-      :`⚠️ Current revenue does not cover all operating expenses. Need Rs.${fmt.money(Math.abs(surplus))} more to break even.`;
-  }
-
-  // Waterfall
-  const wfL=['Gross Sales','Commission','Net Revenue','COGS','Gross Profit','Op. Expenses','Drawings','Net Profit'];
-  const wfD=[M.totalGross,-M.totalComm,M.totalNet,-M.totalCost,M.grossProfit,-M.totalOpex,-M.totalDraw,M.netProfit];
-  const wfC=[PAL[0],PAL[2],PAL[0],PAL[6],PAL[2],PAL[6],PAL[6],M.netProfit>=0?PAL[1]:PAL[6]];
-  destroyChart('chart-waterfall');
-  charts['chart-waterfall']=new Chart($('chart-waterfall'),{
-    type:'bar',
-    data:{labels:wfL,datasets:[{label:'Amount',data:wfD.map(v=>Math.abs(v)),backgroundColor:wfC.map(c=>c+'CC'),borderColor:wfC,borderWidth:1,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Rs.${Math.abs(ctx.raw).toLocaleString()}`}}},scales:{x:{grid:{color:GRID},ticks:{font:{size:9}}},y:{grid:{color:GRID},ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}},
-  });
-
-  // Expense doughnut
-  const expCats=Object.entries(M.expCatMap).sort((a,b)=>b[1]-a[1]);
-  destroyChart('chart-exp-cat');
-  charts['chart-exp-cat']=new Chart($('chart-exp-cat'),{
-    type:'doughnut',
-    data:{labels:expCats.map(e=>e[0]),datasets:[{data:expCats.map(e=>e[1]),backgroundColor:PAL,borderColor:'var(--surface)',borderWidth:2,hoverOffset:6}]},
-    options:doughnutOpts(),
-  });
-
-  // Monthly expense trend
-  const allM=[...new Set([...M.months.map(m=>m.month),...Object.keys(M.expMonthMap)])].sort();
-  destroyChart('chart-exp-monthly');
-  charts['chart-exp-monthly']=new Chart($('chart-exp-monthly'),{
-    type:'line',
-    data:{labels:allM,datasets:[
-      {label:'Net Revenue',data:allM.map(mk=>M.months.find(m=>m.month===mk)?.net||0),borderColor:PAL[0],tension:.35,fill:false,pointRadius:3},
-      {label:'Expenses',data:allM.map(mk=>M.expMonthMap[mk]||0),borderColor:PAL[6],tension:.35,fill:false,pointRadius:3},
-    ]},
-    options:lineOpts(),
-  });
-
-  // Expense table
-  const ef=$('exp-cat-filters');
-  const allCats=['All',...new Set(EXPENSES.map(e=>e.category))];
-  let activeExpCat='All';
-  ef.innerHTML=allCats.map(c=>`<button class="fbtn ${c==='All'?'active':''}" data-cat="${c}">${c}</button>`).join('');
-  ef.querySelectorAll('.fbtn').forEach(b=>{
-    b.addEventListener('click',()=>{
-      ef.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      activeExpCat=b.dataset.cat;
-      renderExpTable(activeExpCat);
-    });
-  });
-  renderExpTable(activeExpCat);
-}
-
-function renderExpTable(cat) {
-  const rows=EXPENSES.filter(e=>cat==='All'||e.category===cat).sort((a,b)=>(b.date||0)-(a.date||0));
-  document.querySelector('#tbl-exp tbody').innerHTML=rows.map(e=>`<tr>
-    <td>${fmt.date(e.date)}</td>
-    <td><span class="pill p-dim">${e.category}</span></td>
-    <td>${e.description}</td>
-    <td class="num" style="color:var(--red)">Rs.${fmt.money(e.amount)}</td>
-  </tr>`).join('');
-}
-
-/* ══ CHART OPTION HELPERS ═══════════════════════════════════ */
-function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
-
-function lineOpts(){
-  return{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#607898',boxWidth:10,padding:14}},tooltip:{backgroundColor:'#0C1A2E',borderColor:'rgba(0,192,255,.3)',borderWidth:1,titleColor:'#DDE8FF',bodyColor:'#607898',callbacks:{label:ctx=>`Rs.${Math.round(ctx.raw).toLocaleString()}`}}},
-    scales:{x:{grid:{color:GRID},ticks:{color:'#607898'}},y:{grid:{color:GRID},ticks:{color:'#607898',callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}},
-  };
-}
-function hbarOpts(){
-  return{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'#0C1A2E',borderColor:'rgba(0,192,255,.3)',borderWidth:1,titleColor:'#DDE8FF',bodyColor:'#607898',callbacks:{label:ctx=>`Rs.${Math.round(ctx.raw).toLocaleString()}`}}},
-    scales:{x:{grid:{color:GRID},ticks:{color:'#607898',callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}},y:{grid:{display:false},ticks:{color:'#DDE8FF',font:{size:10}}}},
-  };
-}
-function groupBarOpts(){
-  return{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#607898',boxWidth:10,padding:12}},tooltip:{backgroundColor:'#0C1A2E',borderColor:'rgba(0,192,255,.3)',borderWidth:1,titleColor:'#DDE8FF',bodyColor:'#607898',callbacks:{label:ctx=>`Rs.${Math.round(ctx.raw).toLocaleString()}`}}},
-    scales:{x:{grid:{color:GRID},ticks:{color:'#607898'}},y:{grid:{color:GRID},ticks:{color:'#607898',callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}},
-  };
-}
-function doughnutOpts(){
-  return{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{position:'right',labels:{color:'#607898',boxWidth:10,padding:10,font:{size:10}}},tooltip:{backgroundColor:'#0C1A2E',borderColor:'rgba(0,192,255,.3)',borderWidth:1,titleColor:'#DDE8FF',bodyColor:'#607898',callbacks:{label:ctx=>`Rs.${Math.round(ctx.raw).toLocaleString()}`}}},
-  };
-}
-
-/* ══ NAV ════════════════════════════════════════════════════ */
-const secMap={overview:'sec-overview',invoices:'sec-invoices',liveinv:'sec-liveinv',inventory:'sec-inventory',strategy:'sec-strategy',finance:'sec-finance'};
-document.querySelectorAll('.nav-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(secMap[tab.dataset.tab]).classList.add('active');
-  });
-});
-
-/* ══ UTILITIES ══════════════════════════════════════════════ */
-function $(id){return document.getElementById(id);}
-function setLoadMsg(msg){const el=$('load-msg');if(el)el.textContent=msg;}
-function showError(msg){
-  const dot=$('status-dot'); if(dot) dot.classList.add('red');
-  const overlay=$('loading-overlay');
-  overlay.classList.remove('hidden');
-  overlay.innerHTML=`
-    <div class="loader-brand">bleuface</div>
-    <div style="color:var(--red);font-weight:700;font-size:15px;margin-bottom:10px">Failed to load data</div>
-    <div style="background:var(--surface);border:1px solid rgba(255,77,92,.3);border-radius:10px;padding:16px 22px;max-width:520px;font-size:12px;line-height:2;color:var(--muted);text-align:left">
-      <b style="color:var(--text)">Error:</b> ${msg.replace(/\n/g,'<br/>')}
-      <br/><br/><b style="color:var(--text)">Options:</b><br/>
-      • Use the <b>📂 Load File</b> button (if overlay closes) to load directly<br/>
-      • Make sure <b>BF DB.xlsx</b> is in your GitHub repo and pushed<br/>
-      • Make sure <b>index.html</b> is also pushed to the repo<br/>
-      • Check GitHub Pages is enabled in your repo Settings
-      • <a href="#" onclick="location.reload()" style="color:var(--cyan)">Click here to retry</a>
-    </div>
-    <div style="display:flex;gap:12px;margin-top:18px">
-      <button class="btn-refresh" onclick="reloadData()">↺ Retry</button>
-      <button class="btn-file" onclick="this.closest('#loading-overlay').classList.add('hidden');document.getElementById('file-input').click()">📂 Load File Instead</button>
+  document.getElementById('fin-be').innerHTML = `
+    <h3>Break-Even Analysis</h3>
+    <div class="pl-row"><span>Total Fixed Costs (Exp + Drawings)</span><span class="pv">${fk(fc, false)}</span></div>
+    <div class="pl-row pl-ind" style="color:var(--faint)"><span>Operating Expenses</span><span>${fk(exp, false)}</span></div>
+    <div class="pl-row pl-ind" style="color:var(--faint)"><span>Drawings</span><span>${fk(drw, false)}</span></div>
+    <div class="pl-row"><span>Gross Margin %</span><span class="pv">${fp(gm)}</span></div>
+    <div class="pl-row sub"><span>Break-Even Revenue</span><span class="pv">${fk(beR, false)}</span></div>
+    <div class="pl-row" style="margin-top:12px"><span>Avg Net Selling Price / unit</span><span class="pv">${fk(avgSP, false)}</span></div>
+    <div class="pl-row"><span>Avg Unit Cost</span><span class="pv">${fk(avgVC, false)}</span></div>
+    <div class="pl-row"><span>Contribution Margin / unit</span><span class="pv">${fk(cm, false)}</span></div>
+    <div class="pl-row sub"><span>Break-Even Units</span><span class="pv">${fn(Math.round(beU))}</span></div>
+    <div class="pl-row" style="margin-top:10px;font-size:12px;color:${t.netRev >= beR ? 'var(--green)' : 'var(--red)'}">
+      <span>${t.netRev >= beR ? '✓ Above break-even by' : '✗ Below break-even by'}</span>
+      <span class="pv">${fk(Math.abs(t.netRev - beR), false)}</span>
     </div>`;
+
+  renderFinCharts();
+}
+function renderFinCharts() {
+  const ms = D.monthly;
+  mkChart('ch-fin1', {
+    type: 'bar',
+    data: {
+      labels: ms.map(m => fmo(m.date)),
+      datasets: [
+        { label: 'Gross Profit', data: ms.map(m => m.gp), backgroundColor: 'rgba(79,142,247,.7)', borderRadius: 3, borderSkipped: false },
+        { label: 'Expenses+Drawings', data: ms.map(m => (D.mExp[m.key] || 0)), backgroundColor: 'rgba(248,113,113,.7)', borderRadius: 3, borderSkipped: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, labels: { color: '#7b8db8', font: { size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fk(ctx.parsed.y, true)}` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: '#7b8db8', font: { size: 10 } } }, y: { grid: { color: '#1c2438' }, ticks: { color: '#7b8db8', font: { size: 10 }, callback: v => fk(v, true) } } }
+    }
+  });
+  mkChart('ch-fin2', {
+    type: 'doughnut',
+    data: { labels: D.expByCat.map(c => c.name), datasets: [{ data: D.expByCat.map(c => c.amt), backgroundColor: CC, borderColor: '#0a0e1a', borderWidth: 2, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '52%',
+      plugins: { legend: { display: true, position: 'right', labels: { color: '#7b8db8', font: { size: 10 }, boxWidth: 10, padding: 6 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fk(ctx.raw, false)}` } } } }
+  });
 }
 
-/* ══ AUTO REFRESH ═══════════════════════════════════════════ */
-setTimeout(()=>{
-  setInterval(async()=>{
-    try{
-      const buf=await loadFromGitHub();
-      loadFromArrayBuffer(buf,'GitHub (auto)');
-    }catch(e){ console.warn('Auto-refresh failed:',e.message); }
-  }, CFG.AUTO_REFRESH_MS);
-}, CFG.AUTO_REFRESH_MS);
+/* ── UI HELPERS ───────────────────────────────────────────── */
+function showLoad(v) {
+  document.getElementById('loading').classList.toggle('show', v);
+  document.getElementById('main').classList.toggle('show', !v);
+}
+function setLoadMsg(m) { document.getElementById('load-msg').textContent = m; }
+function showErr(m) { const el = document.getElementById('err-bar'); el.innerHTML = m; el.classList.add('show'); }
+function clearErr()  { document.getElementById('err-bar').classList.remove('show'); }
 
-/* ══ BOOT ═══════════════════════════════════════════════════ */
-startLoad();
+let toastTimer;
+function toast(m) {
+  const el = document.getElementById('toast'); el.textContent = m;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('pane-' + name).classList.add('on');
+}
+
+/* ── BOOT ─────────────────────────────────────────────────── */
+reloadData();
+setInterval(reloadData, REFRESH_MS);
 </script>
+</body>
+</html>
