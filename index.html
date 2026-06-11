@@ -185,40 +185,11 @@ tbody tr:last-child td{border-bottom:none}
 <div id="loading-overlay">
   <div class="loader-brand">bleuface</div>
   <div class="loader-ring"></div>
-  <div class="loader-text" id="load-msg">Initialising…</div>
+  <div class="loader-text" id="load-msg">Connecting to GitHub…</div>
 </div>
 
 <!-- SETUP PANEL -->
-<div id="setup-panel" class="hidden">
-  <div style="text-align:center;margin-bottom:28px">
-    <div class="loader-brand" style="margin-bottom:6px">bleuface</div>
-    <div style="font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase">Command Centre · Setup</div>
-  </div>
-  <div class="setup-card">
-    <div class="setup-title">Connect your Excel file</div>
-    <div class="setup-sub">
-      Paste your OneDrive direct-download link below, or use the file picker to load the Excel file from your computer. Your settings are saved in this browser.
-    </div>
-
-    <div class="setup-steps">
-      <b>How to get an OneDrive link:</b><br>
-      1. Open <b>OneDrive</b> → right-click <b>BF_DB.xlsx</b> → <b>Share</b><br>
-      2. Set link to <b>"Anyone with link can view"</b> → <b>Copy link</b><br>
-      3. Paste it below — the dashboard auto-converts it to a direct download URL
-    </div>
-
-    <label class="setup-label">OneDrive Share URL</label>
-    <input class="setup-input" id="setup-url" placeholder="https://1drv.ms/x/… or https://onedrive.live.com/…"/>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="saveAndLoad()">Connect &amp; Load Dashboard</button>
-
-    <div class="setup-or">or</div>
-
-    <button class="btn btn-ghost" style="width:100%;justify-content:center;padding:10px" onclick="document.getElementById('file-input').click()">
-      📂 Load from local file (this browser only)
-    </button>
-    <div style="font-size:10px;color:var(--dim);margin-top:10px;text-align:center">Local file won't auto-refresh — you'll need to reload manually each session.</div>
-  </div>
-</div>
+<div id="setup-panel" class="hidden" style="display:none"></div>
 
 <!-- HEADER -->
 <header>
@@ -614,7 +585,7 @@ tbody tr:last-child td{border-bottom:none}
 
 /* ── CONFIG ─────────────────────────────────────────────── */
 const CFG = {
-  ONEDRIVE_URL_KEY: 'bf_onedrive_url',
+  GITHUB_EXCEL_URL: 'https://raw.githubusercontent.com/abdussamadquraishi99-eng/BleuFace-Dashboard/main/BF%20DB.xlsx',
   PAYMENT_TERMS_DAYS: 30,
   AUTO_REFRESH_MS: 5 * 60 * 1000,   // 5 minutes
   LOW_STOCK_THRESHOLD: 0.20,
@@ -691,31 +662,10 @@ function col(row, ...names) {
 let ORDERS=[], PRODUCTS=[], EXPENSES=[], DRAWINGS=[], INVOICES=[], LIVE_INV=[], INV_TRACKER=[], CUSTOMERS=[];
 const charts={};
 
-/* ══ ONEDRIVE URL CONVERTER ═════════════════════════════════
-   Converts share links to direct download URLs that SheetJS
-   can fetch as ArrayBuffer.
+/* ══ GITHUB RAW URL ══════════════════════════════════════════
+   Excel file is served directly from GitHub raw — no auth,
+   no CORS issues, updates within ~5min of a push.
    ──────────────────────────────────────────────────────── */
-function toDirectUrl(url) {
-  if(!url) return null;
-  url = url.trim();
-  // Already a direct download
-  if(url.includes('download=1')||url.includes('/download')) return url;
-  // 1drv.ms short link → add download=1
-  if(url.includes('1drv.ms')) return url.replace(/\?.*$/,'')+'?download=1';
-  // onedrive.live.com
-  if(url.includes('onedrive.live.com')) {
-    return url.replace('redir?','download?').replace('view.aspx?','download.aspx?');
-  }
-  // SharePoint / Office 365 shared link
-  if(url.includes('sharepoint.com')) {
-    try {
-      const u=new URL(url);
-      const s=u.searchParams.get('source')||url;
-      return s+'&download=1';
-    } catch(e) { return url+'&download=1'; }
-  }
-  return url;
-}
 
 /* ══ SHEET READER ═══════════════════════════════════════════
    Parses a workbook (ArrayBuffer) into named sheet arrays.
@@ -927,46 +877,28 @@ function loadFromFile(input) {
   input.value='';
 }
 
-/* ══ LOAD FROM ONEDRIVE URL ═════════════════════════════════ */
-async function loadFromUrl(url) {
-  const direct = toDirectUrl(url);
-  if(!direct) throw new Error('Invalid OneDrive URL');
-  setLoadMsg('Fetching from OneDrive…');
-  const res = await fetch(direct);
-  if(!res.ok) throw new Error(`OneDrive fetch failed: ${res.status} ${res.statusText}`);
-  const buf = await res.arrayBuffer();
-  return buf;
-}
-
-/* ══ SAVE URL & LOAD ════════════════════════════════════════ */
-function saveAndLoad() {
-  const url = document.getElementById('setup-url').value.trim();
-  if(!url){ alert('Please paste your OneDrive URL first.'); return; }
-  localStorage.setItem(CFG.ONEDRIVE_URL_KEY, url);
-  document.getElementById('setup-panel').classList.add('hidden');
-  startLoad();
+/* ══ FETCH EXCEL FROM GITHUB ════════════════════════════════ */
+async function loadFromGitHub() {
+  // Add cache-busting so browser always gets latest version
+  const url = CFG.GITHUB_EXCEL_URL + '?t=' + Date.now();
+  setLoadMsg('Fetching latest data from GitHub…');
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`GitHub fetch failed: ${res.status} ${res.statusText}\n\nMake sure BF DB.xlsx is pushed to your repo.`);
+  return await res.arrayBuffer();
 }
 
 /* ══ MAIN LOAD ORCHESTRATOR ═════════════════════════════════ */
 async function startLoad() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.remove('hidden');
-  setLoadMsg('Initialising…');
+  setLoadMsg('Connecting to GitHub…');
 
-  const savedUrl = localStorage.getItem(CFG.ONEDRIVE_URL_KEY);
-
-  if(savedUrl) {
-    try {
-      const buf = await loadFromUrl(savedUrl);
-      loadFromArrayBuffer(buf, 'OneDrive');
-    } catch(err) {
-      console.error('OneDrive load failed:', err);
-      showError(err.message+'\n\nYou can also load the file directly using the "📂 Load File" button in the header.');
-    }
-  } else {
-    // Show setup panel
-    overlay.classList.add('hidden');
-    document.getElementById('setup-panel').classList.remove('hidden');
+  try {
+    const buf = await loadFromGitHub();
+    loadFromArrayBuffer(buf, 'GitHub');
+  } catch(err) {
+    console.error('GitHub load failed:', err);
+    showError(err.message);
   }
 }
 
@@ -1740,8 +1672,10 @@ function showError(msg){
       <b style="color:var(--text)">Error:</b> ${msg.replace(/\n/g,'<br/>')}
       <br/><br/><b style="color:var(--text)">Options:</b><br/>
       • Use the <b>📂 Load File</b> button (if overlay closes) to load directly<br/>
-      • Check your OneDrive link is set to <b>"Anyone with link can view"</b><br/>
-      • <a href="#" onclick="localStorage.removeItem('${CFG.ONEDRIVE_URL_KEY}');location.reload()" style="color:var(--cyan)">Reset saved URL and reconfigure</a>
+      • Make sure <b>BF DB.xlsx</b> is in your GitHub repo and pushed<br/>
+      • Make sure <b>index.html</b> is also pushed to the repo<br/>
+      • Check GitHub Pages is enabled in your repo Settings
+      • <a href="#" onclick="location.reload()" style="color:var(--cyan)">Click here to retry</a>
     </div>
     <div style="display:flex;gap:12px;margin-top:18px">
       <button class="btn-refresh" onclick="reloadData()">↺ Retry</button>
@@ -1752,12 +1686,10 @@ function showError(msg){
 /* ══ AUTO REFRESH ═══════════════════════════════════════════ */
 setTimeout(()=>{
   setInterval(async()=>{
-    if(localStorage.getItem(CFG.ONEDRIVE_URL_KEY)){
-      try{
-        const buf=await loadFromUrl(localStorage.getItem(CFG.ONEDRIVE_URL_KEY));
-        loadFromArrayBuffer(buf,'OneDrive (auto)');
-      }catch(e){ console.warn('Auto-refresh failed:',e.message); }
-    }
+    try{
+      const buf=await loadFromGitHub();
+      loadFromArrayBuffer(buf,'GitHub (auto)');
+    }catch(e){ console.warn('Auto-refresh failed:',e.message); }
   }, CFG.AUTO_REFRESH_MS);
 }, CFG.AUTO_REFRESH_MS);
 
